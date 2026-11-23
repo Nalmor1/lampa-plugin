@@ -5,8 +5,8 @@
   window.plugin_openmatte_ready = true;
 
   var KEY = 'openmatte_filter';
-  var RE = /open[\s._\-]*matte|web[\s._\-]*dl/i;
-  var DEBUG = true; // показывает всплывающие подсказки для диагностики
+  var RE = /open[\s._\-]*matte/i;
+  var DEBUG = false; // true = показывать диагностические подсказки
 
   function isOn() {
     return Lampa.Storage.get(KEY, 'false') === 'true';
@@ -29,9 +29,11 @@
       return origGet.call(this, params, function (json) {
         try {
           if (isOn() && json && Array.isArray(json.Results)) {
+            var before = json.Results.length;
             json.Results = json.Results.filter(function (t) {
               return RE.test(t.Title || t.title || '');
             });
+            if (DEBUG) Lampa.Noty.show('Open Matte: оставлено ' + json.Results.length + ' из ' + before);
           }
         } catch (e) {}
         oncomplite(json);
@@ -130,10 +132,24 @@
     };
   }
 
+  // 3. Запасной вариант: прячем неподходящие раздачи при отрисовке
+  function patchRender() {
+    Lampa.Listener.follow('torrent', function (e) {
+      try {
+        if (e.type !== 'render' || !isOn() || !e.element || !e.item) return;
+        var title = e.element.Title || e.element.title || '';
+        if (!RE.test(title)) {
+          e.item.removeClass('selector').addClass('hide').css('display', 'none');
+        }
+      } catch (err) {}
+    });
+  }
+
   function start() {
     patchParser();
     patchSelect();
-    if (DEBUG) Lampa.Noty.show('Open Matte: плагин загружен');
+    patchRender();
+    if (DEBUG) Lampa.Noty.show('Open Matte: фильтр ' + (isOn() ? 'включён' : 'выключен'));
   }
 
   if (window.appready) start();
