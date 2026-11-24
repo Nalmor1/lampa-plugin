@@ -50,39 +50,26 @@
     var BUTTONS_BOX = '.full-start__buttons, .full-start-new__buttons';
 
     // ===== Кнопки верхней панели (поиск, молния, колокольчик и т.д.) =====
-    // Сюда впишем классы кнопок, которые нужно скрыть (после диагностики).
+    // Классы кнопок верхней панели, которые нужно скрыть.
     // open--broadcast — значок «Открыть карточку на другом устройстве» (появляется на экране фильма)
-    var HIDE_HEAD_CLASSES = ['open--broadcast'];
-    // Временная диагностика: показывает на экране классы всех кнопок верхней панели.
-    // Когда классы узнаем — поставить false.
-    var DEBUG_HEAD = true;
-
+    // black-friday__button — молния в верхней панели
+    var HIDE_HEAD_CLASSES = ['open--broadcast', 'black-friday__button'];
     function shouldHideHead(el) {
         if (!el.closest || !el.closest('.head')) return false;
+        if (String(el.className).indexOf('black-friday') !== -1) return true; // и вариант --animation
         for (var h = 0; h < HIDE_HEAD_CLASSES.length; h++) {
             if (el.classList.contains(HIDE_HEAD_CLASSES[h])) return true;
         }
         return false;
     }
 
-    function startDebugHead() {
-        var box = document.createElement('div');
-        box.style.cssText = 'position:fixed;top:12%;left:2%;z-index:99999;' +
-            'background:rgba(0,0,0,.9);color:#fff;font:22px/1.4 monospace;' +
-            'padding:12px 16px;border-radius:8px;white-space:pre;pointer-events:none;';
-        document.body.appendChild(box);
-        setInterval(function () {
-            var list = document.querySelectorAll('.head .head__action, .head .selector');
-            var seen = [], lines = ['КНОПКИ ВЕРХНЕЙ ПАНЕЛИ:'];
-            for (var d = 0; d < list.length; d++) {
-                if (seen.indexOf(list[d]) !== -1) continue;
-                seen.push(list[d]);
-                lines.push((seen.length) + '. ' + String(list[d].className).replace(/\s+/g, ' ') +
-                    (list[d].classList.contains(CLASS) ? '   [СКРЫТА]' : ''));
-            }
-            box.textContent = lines.join('\n');
-        }, 1500);
-    }
+    // Чистый CSS-запрет: работает мгновенно, даже если кнопку пересоздали или у неё сменился класс
+    var headCss = '[class*="black-friday"]';
+    for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) headCss += ',.head .' + HIDE_HEAD_CLASSES[q];
+    var headStyle = document.createElement('style');
+    headStyle.textContent = headCss + ' { display: none !important; }';
+    document.head.appendChild(headStyle);
+
 
     function shouldHideButton(el) {
         if (!el.closest || !el.closest(BUTTONS_BOX)) return false;
@@ -101,19 +88,24 @@
         return false;
     }
 
-    function checkEl(el) {
-        if (!el.classList || el.classList.contains(CLASS)) return false;
-        if (!el.classList.contains('selector')) return false;
-        if (!matches(el) && !shouldHideButton(el) && !shouldHideHead(el)) return false;
+    function hideEl(el) {
         el.classList.remove('selector', 'focus', 'hover'); // курсор её больше не касается
         el.classList.add(CLASS);                           // и она не занимает место
         return true;
     }
 
+    function checkEl(el) {
+        if (!el.classList || el.classList.contains(CLASS)) return false;
+        if (shouldHideHead(el)) return hideEl(el);
+        if (!el.classList.contains('selector')) return false;
+        if (!matches(el) && !shouldHideButton(el)) return false;
+        return hideEl(el);
+    }
+
     function checkTree(root) {
         if (!root || root.nodeType !== 1) return false;
         var hidden = checkEl(root);
-        var nodes = root.querySelectorAll('.selector');
+        var nodes = root.querySelectorAll('.selector, .head__action');
         for (var i = 0; i < nodes.length; i++) {
             if (checkEl(nodes[i])) hidden = true;
         }
@@ -126,6 +118,11 @@
         var hidden = false;
         for (var i = 0; i < mutations.length; i++) {
             var m = mutations[i];
+            if (m.type === 'attributes') { // сменился класс (например, добавилась анимация)
+                var tg = m.target;
+                if (tg && tg.nodeType === 1 && tg.closest && tg.closest('.head') && checkEl(tg)) hidden = true;
+                continue;
+            }
             for (var k = 0; k < m.addedNodes.length; k++) {
                 if (checkTree(m.addedNodes[k])) hidden = true;
             }
@@ -140,8 +137,7 @@
 
     function start() {
         if (checkTree(document.body)) refreshController();
-        observer.observe(document.body, { childList: true, subtree: true });
-        if (DEBUG_HEAD) startDebugHead();
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
     if (window.appready) start();
