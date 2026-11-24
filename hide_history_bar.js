@@ -5,91 +5,6 @@
     var TEXTS = ['нет истории просмотра'];
     var CLASS = 'hhb-invisible';
 
-    // ===== Отладка =====
-    // true — внизу слева на экране показываются сообщения плагина (и пишутся в консоль Lampa).
-    // Когда всё заработает, поставьте false.
-    var DEBUG = true;
-
-    var dbgBox = null, dbgLines = [], scanTimer = null, seenBg = {};
-
-    function dbg(msg) {
-        if (!DEBUG) return;
-        try { console.log('[hhb] ' + msg); } catch (e) {}
-        try {
-            dbgLines.push(msg);
-            if (dbgLines.length > 10) dbgLines.shift();
-            if (!dbgBox && document.body) {
-                dbgBox = document.createElement('div');
-                dbgBox.style.cssText = 'position:fixed;left:8px;bottom:8px;max-width:70%;z-index:2147483647;' +
-                    'pointer-events:none;background:rgba(0,0,0,.85);color:#0f0;font:12px/1.3 monospace;' +
-                    'padding:6px 8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;';
-                document.body.appendChild(dbgBox);
-            }
-            if (dbgBox) dbgBox.textContent = dbgLines.join('\n');
-        } catch (e) {}
-    }
-
-    // Показывает крупные элементы, у которых фон не чёрный (чтобы найти «серые» окна),
-    // и элементы в верхней панели, где встречается «CUB».
-    function scanDebug() {
-        if (!DEBUG || !document.body) return;
-        try {
-            var all = document.body.querySelectorAll('*');
-            for (var i = 0; i < all.length; i++) {
-                var el = all[i];
-                if (el === dbgBox) continue;
-                var r = el.getBoundingClientRect();
-                if (r.width < 350 || r.height < 150) continue;
-                var cs = getComputedStyle(el);
-                var bg = cs.backgroundColor;
-                var img = cs.backgroundImage;
-                var plain = (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent' || bg === 'rgb(0, 0, 0)') && img === 'none';
-                if (plain) continue;
-                var sig = el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 60) +
-                          ' bg=' + bg + (img !== 'none' ? ' +img' : '');
-                if (seenBg[sig]) continue;
-                seenBg[sig] = true;
-                dbg('BG ' + sig);
-            }
-            var head = document.querySelectorAll('.head *');
-            for (var j = 0; j < head.length; j++) {
-                var h = head[j];
-                if (h.children.length === 0 && /CUB/i.test(h.textContent || '')) {
-                    var s2 = 'CUB in ' + h.tagName.toLowerCase() + '.' + String(h.className).slice(0, 60) + ' "' + h.textContent + '"';
-                    if (!seenBg[s2]) { seenBg[s2] = true; dbg(s2); }
-                }
-            }
-        } catch (e) { dbg('scan error: ' + e.message); }
-    }
-
-    function scheduleScan() {
-        if (scanTimer) clearTimeout(scanTimer);
-        scanTimer = setTimeout(scanDebug, 800);
-    }
-
-    // Лёгкая проверка раз в секунду: какие элементы лежат сверху в центре экрана
-    // и в правой части (там открывается диалог «Выберите действие»).
-    // Откройте диалог и подождите 1–2 секунды — в плашке появятся строки TOP.
-    function scanTop() {
-        if (!DEBUG || !document.elementsFromPoint) return;
-        try {
-            var pts = [[0.5, 0.5], [0.6, 0.3]];
-            for (var p = 0; p < pts.length; p++) {
-                var list = document.elementsFromPoint(window.innerWidth * pts[p][0], window.innerHeight * pts[p][1]);
-                var parts = [];
-                for (var i = 0; i < list.length && parts.length < 4; i++) {
-                    var el = list[i];
-                    if (el === dbgBox) continue;
-                    var cs = getComputedStyle(el);
-                    parts.push(el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 45) +
-                               ' [' + cs.backgroundColor + (cs.backdropFilter && cs.backdropFilter !== 'none' ? ' blur' : '') + ']');
-                }
-                var sig = 'TOP' + p + ' ' + parts.join(' > ');
-                if (!seenBg[sig]) { seenBg[sig] = true; dbg(sig); }
-            }
-        } catch (e) {}
-    }
-
     // ===== Скрытие лишних кнопок на экране фильма =====
     // Кнопки с такой точной надписью скрываются (кроме Торренты и Избранное)
     var HIDE_BUTTON_TEXTS = ['смотреть', 'подписаться'];
@@ -111,8 +26,7 @@
     // Всегда показывать надписи у кнопок («Торренты», «Избранное»), а не только при наведении
     var SHOW_LABELS = true;
 
-    // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта,
-    // консоль, диалог «Выберите действие») — чёрные, а не серые
+    // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта) — чёрные, а не серые
     var BLACK_PANELS = true;
 
     // Все правила стилей — одним блоком
@@ -127,18 +41,10 @@
                ' width: auto !important; }';
     }
     if (BLACK_PANELS) {
-        // Контейнеры окон: настройки, выбор (selectbox), модальные окна, уведомления
-        css += 'body .settings__content, body .selectbox__content, body .selectbox__body,' +
-               ' body .selectbox__scroll, body .modal__content, body .notice__content,' +
-               // Консоль (точные имена классов зависят от версии Lampa, поэтому по части имени)
-               ' body .console, body [class*="console__content"], body [class*="console__body"],' +
-               ' body [class*="console__wrap"], body [class*="console__layer"],' +
-               ' body [class*="console__window"], body [class*="console__panel"],' +
-               ' body [class*="console__list"], body [class*="console__sidebar"] {' +
+        css += 'body .settings__content, body .selectbox__content, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important;' +
                ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
-               'body .settings__head, body .selectbox__head, body [class*="console__head"] {' +
+               'body .settings__head, body .selectbox__head {' +
                ' background: transparent !important; }';
     }
     var style = document.createElement('style');
@@ -228,48 +134,21 @@
         return hidden;
     }
 
-    // ===== Заголовок «Главная - CUB» → «Главная» =====
-    // Убирает « - CUB» (и «– CUB», «— CUB») в конце заголовка в верхней панели
-    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*CUB\s*$/i;
-
-    function fixHeadTitle() {
-        var titles = document.querySelectorAll('.head__title');
-        for (var i = 0; i < titles.length; i++) {
-            var el = titles[i];
-            if (!TITLE_REGEX.test(el.textContent || '')) continue;
-            dbg('title fixed: "' + (el.textContent || '') + '"');
-            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-            var node;
-            while ((node = walker.nextNode())) {
-                if (TITLE_REGEX.test(node.nodeValue)) {
-                    node.nodeValue = node.nodeValue.replace(TITLE_REGEX, '');
-                }
-            }
-            // запасной вариант: текст разбит на несколько узлов
-            if (TITLE_REGEX.test(el.textContent || '') && !el.children.length) {
-                el.textContent = el.textContent.replace(TITLE_REGEX, '');
-            }
-        }
-    }
-
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
     // Изменения собираем за весь пакет и каждый элемент проверяем один раз.
     var observer = new MutationObserver(function (mutations) {
         var hidden = false;
         var roots = [], sels = [];
-        var real = false;
         for (var i = 0; i < mutations.length; i++) {
             var m = mutations[i];
-            if (dbgBox && dbgBox.contains(m.target)) continue; // свои сообщения отладки не разбираем
-            real = true;
             if (m.type === 'attributes') { // сменился класс (например, добавилась анимация)
                 var tg = m.target;
                 if (tg && tg.nodeType === 1 && tg.classList && tg.classList.contains('head__action') && checkEl(tg)) hidden = true;
                 continue;
             }
             for (var k = 0; k < m.addedNodes.length; k++) {
-                if (m.addedNodes[k].nodeType === 1 && m.addedNodes[k] !== dbgBox) roots.push(m.addedNodes[k]);
+                if (m.addedNodes[k].nodeType === 1) roots.push(m.addedNodes[k]);
             }
             // текст мог появиться внутри уже существующего элемента
             var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
@@ -284,18 +163,12 @@
             sels[r]._hhbQ = false;
             if (checkEl(sels[r])) hidden = true;
         }
-        fixHeadTitle();
-        if (DEBUG && real) scheduleScan();
         if (hidden) refreshController();
     });
 
 
     function start() {
         if (checkTree(document.body)) refreshController();
-        fixHeadTitle();
-        dbg('hide_history_bar запущен, .head__title найдено: ' + document.querySelectorAll('.head__title').length);
-        try { if (DEBUG && window.Lampa && Lampa.Noty) Lampa.Noty.show('hide_history_bar: загружен'); } catch (e) {}
-        if (DEBUG) { scheduleScan(); setInterval(scanTop, 1000); }
         observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
