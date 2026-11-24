@@ -26,6 +26,9 @@
     // Всегда показывать надписи у кнопок («Торренты», «Избранное»), а не только при наведении
     var SHOW_LABELS = true;
 
+    // Боковые панели (настройки, избранное, фильтр, «О приложении») — чёрные, а не серые
+    var BLACK_PANELS = true;
+
     // Все правила стилей — одним блоком
     var css = '.' + CLASS + ',[class*="black-friday"]';
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
@@ -36,6 +39,13 @@
                ' display: inline !important; opacity: 1 !important;' +
                ' visibility: visible !important; max-width: none !important;' +
                ' width: auto !important; }';
+    }
+    if (BLACK_PANELS) {
+        css += 'body .settings__content, body .selectbox__content {' +
+               ' background: #000 !important; background-color: #000 !important;' +
+               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
+               'body .settings__head, body .selectbox__head {' +
+               ' background: transparent !important; }';
     }
     var style = document.createElement('style');
     style.textContent = css;
