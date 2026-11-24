@@ -29,10 +29,36 @@
         return false;
     }
 
+
+    // ===== Скрытие лишних кнопок на экране фильма =====
+    // Кнопки с такой точной надписью скрываются (кроме Торренты и Избранное)
+    var HIDE_BUTTON_TEXTS = ['смотреть', 'подписаться'];
+    // Кнопки с такими классами скрываются (три точки, колокольчик, онлайн)
+    var HIDE_BUTTON_CLASSES = ['button--options', 'button--subscribe', 'view--online'];
+    // Эти кнопки не трогаются никогда
+    var KEEP_BUTTON_CLASSES = ['view--torrent', 'button--book'];
+    var BUTTONS_BOX = '.full-start__buttons, .full-start-new__buttons';
+
+    function shouldHideButton(el) {
+        if (!el.closest || !el.closest(BUTTONS_BOX)) return false;
+        var c;
+        for (c = 0; c < KEEP_BUTTON_CLASSES.length; c++) {
+            if (el.classList.contains(KEEP_BUTTON_CLASSES[c])) return false;
+        }
+        for (c = 0; c < HIDE_BUTTON_CLASSES.length; c++) {
+            if (el.classList.contains(HIDE_BUTTON_CLASSES[c])) return true;
+        }
+        var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        for (var k = 0; k < HIDE_BUTTON_TEXTS.length; k++) {
+            if (text === HIDE_BUTTON_TEXTS[k]) return true;
+        }
+        return false;
+    }
+
     function checkEl(el) {
         if (!el.classList || el.classList.contains(CLASS)) return false;
         if (!el.classList.contains('selector')) return false;
-        if (!matches(el)) return false;
+        if (!matches(el) && !shouldHideButton(el)) return false;
         el.classList.remove('selector', 'focus', 'hover'); // курсор её больше не касается
         el.classList.add(CLASS);                           // и она не занимает место
         return true;
@@ -83,8 +109,11 @@
             var card = (e.data && e.data.movie) || e.object.card;
             if (!card) return;
 
-            var icon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">' +
-                '<path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3zM5 19h14v2H5z"/></svg>';
+            // Значок в стиле µTorrent: тёмный круг с белой буквой «µ»
+            var icon = '<svg width="28" height="28" viewBox="0 0 28 28">' +
+                '<circle cx="14" cy="14" r="13" fill="#2b2b2b"/>' +
+                '<text x="14" y="20" text-anchor="middle" font-size="18" font-weight="bold" ' +
+                'font-family="Arial, Helvetica, sans-serif" fill="#ffffff">\u00b5</text></svg>';
             var btn = $('<div class="full-start__button selector view--torrent">' + icon +
                 '<span>Торренты</span></div>');
 
