@@ -67,6 +67,29 @@
         scanTimer = setTimeout(scanDebug, 800);
     }
 
+    // Лёгкая проверка раз в секунду: какие элементы лежат сверху в центре экрана
+    // и в правой части (там открывается диалог «Выберите действие»).
+    // Откройте диалог и подождите 1–2 секунды — в плашке появятся строки TOP.
+    function scanTop() {
+        if (!DEBUG || !document.elementsFromPoint) return;
+        try {
+            var pts = [[0.5, 0.5], [0.6, 0.3]];
+            for (var p = 0; p < pts.length; p++) {
+                var list = document.elementsFromPoint(window.innerWidth * pts[p][0], window.innerHeight * pts[p][1]);
+                var parts = [];
+                for (var i = 0; i < list.length && parts.length < 4; i++) {
+                    var el = list[i];
+                    if (el === dbgBox) continue;
+                    var cs = getComputedStyle(el);
+                    parts.push(el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 45) +
+                               ' [' + cs.backgroundColor + (cs.backdropFilter && cs.backdropFilter !== 'none' ? ' blur' : '') + ']');
+                }
+                var sig = 'TOP' + p + ' ' + parts.join(' > ');
+                if (!seenBg[sig]) { seenBg[sig] = true; dbg(sig); }
+            }
+        } catch (e) {}
+    }
+
     // ===== Скрытие лишних кнопок на экране фильма =====
     // Кнопки с такой точной надписью скрываются (кроме Торренты и Избранное)
     var HIDE_BUTTON_TEXTS = ['смотреть', 'подписаться'];
@@ -272,7 +295,7 @@
         fixHeadTitle();
         dbg('hide_history_bar запущен, .head__title найдено: ' + document.querySelectorAll('.head__title').length);
         try { if (DEBUG && window.Lampa && Lampa.Noty) Lampa.Noty.show('hide_history_bar: загружен'); } catch (e) {}
-        if (DEBUG) scheduleScan();
+        if (DEBUG) { scheduleScan(); setInterval(scanTop, 1000); }
         observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
