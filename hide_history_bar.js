@@ -6,15 +6,15 @@
     // 1) Строки с таким текстом скрываются полностью
     var TEXTS = ['нет истории просмотра'];
 
-    // 2) На экране фильма в ряду кнопок остаются ТОЛЬКО кнопки с этими словами.
-    //    Всё остальное (Смотреть, Подписаться, три точки и т.д.) скрывается.
-    //    Чтобы оставить ещё одну кнопку, добавьте слово из её названия.
-    var KEEP_BUTTONS = ['торрент', 'избранн'];
+    // 2) Кнопки на экране фильма, которые нужно скрыть, по точной надписи.
+    //    Все остальные кнопки (Торренты, Избранное и т.д.) не трогаются.
+    var HIDE_BUTTON_TEXTS = ['смотреть', 'подписаться'];
 
-    // 3) Кнопки без надписи (например, три точки), которые скрываются по названию класса
+    // 3) Кнопки, которые скрываются по названию класса
+    //    (три точки, колокольчик). Добавьте сюда другие классы при необходимости.
     var HIDE_BUTTON_CLASSES = ['button--options', 'button--subscribe', 'button--more'];
 
-    // 4) Всегда показывать надписи у оставшихся кнопок (true) или как раньше (false)
+    // 4) Всегда показывать надписи у кнопок (true) или как раньше (false)
     var SHOW_LABELS = true;
 
     // ======================
@@ -46,7 +46,7 @@
     }
 
     function getText(el) {
-        return (el.textContent || '').trim().toLowerCase();
+        return (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
     }
 
     function isHistoryBar(el) {
@@ -66,12 +66,10 @@
         }
 
         var text = getText(el);
-        if (!text) return false; // без надписи и без известного класса не трогаем
-
-        for (var k = 0; k < KEEP_BUTTONS.length; k++) {
-            if (text.indexOf(KEEP_BUTTONS[k]) !== -1) return false;
+        for (var k = 0; k < HIDE_BUTTON_TEXTS.length; k++) {
+            if (text === HIDE_BUTTON_TEXTS[k]) return true;
         }
-        return true;
+        return false;
     }
 
     function hide(el) {
