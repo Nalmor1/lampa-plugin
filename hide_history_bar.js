@@ -106,7 +106,7 @@
     // ===== Кнопка «Торренты» на экране фильма =====
     // Если в ряду кнопок нет видимой кнопки «Торренты», плагин добавляет свою
     // (перед «Избранным») и открывает по ней поиск торрентов для этого фильма.
-    var ADD_TORRENT_BUTTON = true;
+    var ADD_TORRENT_BUTTON = false;
 
     function addTorrentButton(e) {
         if (!ADD_TORRENT_BUTTON || !e || e.type !== 'complite') return;
