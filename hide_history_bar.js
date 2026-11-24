@@ -71,6 +71,15 @@
     document.head.appendChild(headStyle);
 
 
+    // ===== Вкладка «AI-ассистент» в поиске =====
+    // Скрывается только элемент, у которого весь текст — «AI-ассистент»
+    var HIDE_TAB_REGEX = /^ai[\s\-\u2013\u2014]*асс?истент$/i;
+
+    function shouldHideTab(el) {
+        var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        return HIDE_TAB_REGEX.test(text);
+    }
+
     function shouldHideButton(el) {
         if (!el.closest || !el.closest(BUTTONS_BOX)) return false;
         var c;
@@ -98,7 +107,7 @@
         if (!el.classList || el.classList.contains(CLASS)) return false;
         if (shouldHideHead(el)) return hideEl(el);
         if (!el.classList.contains('selector')) return false;
-        if (!matches(el) && !shouldHideButton(el)) return false;
+        if (!matches(el) && !shouldHideButton(el) && !shouldHideTab(el)) return false;
         return hideEl(el);
     }
 
