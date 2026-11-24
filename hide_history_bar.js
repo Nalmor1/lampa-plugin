@@ -105,7 +105,7 @@
     // ===== Кнопка «Торренты» на экране фильма =====
     // Если в ряду кнопок нет видимой кнопки «Торренты», плагин добавляет свою
     // (перед «Избранным») и открывает по ней поиск торрентов для этого фильма.
-    var ADD_TORRENT_BUTTON = false;
+    var ADD_TORRENT_BUTTON = true;
 
     function addTorrentButton(e) {
         if (!ADD_TORRENT_BUTTON || !e || e.type !== 'complite') return;
@@ -119,10 +119,10 @@
             var card = (e.data && e.data.movie) || e.object.card;
             if (!card) return;
 
-            // Значок в стиле µTorrent: тёмный круг с белой буквой «µ»
-            var icon = '<svg width="28" height="28" viewBox="0 0 28 28">' +
-                '<circle cx="14" cy="14" r="13" fill="#2b2b2b"/>' +
-                '<text x="14" y="20" text-anchor="middle" font-size="18" font-weight="bold" ' +
+            // Значок в стиле µTorrent: тёмный круг с белой буквой «µ» (как у заводской кнопки)
+            var icon = '<svg width="34" height="34" viewBox="0 0 34 34">' +
+                '<circle cx="17" cy="17" r="16" fill="#1a1a1a"/>' +
+                '<text x="17" y="24.5" text-anchor="middle" font-size="23" font-weight="bold" ' +
                 'font-family="Arial, Helvetica, sans-serif" fill="#ffffff">\u00b5</text></svg>';
             var btn = $('<div class="full-start__button selector view--torrent">' + icon +
                 '<span>Торренты</span></div>');
@@ -145,6 +145,21 @@
             else box.prepend(btn);
 
             setTimeout(refreshController, 0);
+
+            // Подгоняем размер нашего значка под значок соседней кнопки (например, «Избранное»)
+            setTimeout(function () {
+                try {
+                    var ref = box.find('.full-start__button').not(btn).find('svg').first();
+                    var mine = btn.find('svg')[0];
+                    if (!ref.length || !mine) return;
+                    var r = ref[0].getBoundingClientRect();
+                    var size = Math.round(Math.max(r.width, r.height));
+                    if (size > 0) {
+                        mine.style.width = size + 'px';
+                        mine.style.height = size + 'px';
+                    }
+                } catch (e2) {}
+            }, 400);
         } catch (err) {}
     }
 
