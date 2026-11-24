@@ -26,7 +26,7 @@
     // Всегда показывать надписи у кнопок («Торренты», «Избранное»), а не только при наведении
     var SHOW_LABELS = true;
 
-    // Боковые панели (настройки, избранное, фильтр, «О приложении») — чёрные, а не серые
+    // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта) — чёрные, а не серые
     var BLACK_PANELS = true;
 
     // Все правила стилей — одним блоком
@@ -41,7 +41,7 @@
                ' width: auto !important; }';
     }
     if (BLACK_PANELS) {
-        css += 'body .settings__content, body .selectbox__content {' +
+        css += 'body .settings__content, body .selectbox__content, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
                ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
                'body .settings__head, body .selectbox__head {' +
