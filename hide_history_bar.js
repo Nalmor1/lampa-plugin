@@ -6,7 +6,17 @@
     var CLASS = 'hhb-invisible';
 
     var style = document.createElement('style');
-    style.textContent = '.' + CLASS + ' { display: none !important; }';
+    // Всегда показывать надписи у кнопок («Торренты», «Избранное»), а не только при наведении
+    var SHOW_LABELS = true;
+    var css = '.' + CLASS + ' { display: none !important; }';
+    if (SHOW_LABELS) {
+        css += '.full-start__buttons .full-start__button span,' +
+               '.full-start-new__buttons .full-start__button span {' +
+               ' display: inline !important; opacity: 1 !important;' +
+               ' visibility: visible !important; max-width: none !important;' +
+               ' width: auto !important; }';
+    }
+    style.textContent = css;
     document.head.appendChild(style);
 
     // Заставляет Lampa заново собрать элементы для курсора,
@@ -95,7 +105,7 @@
     // ===== Кнопка «Торренты» на экране фильма =====
     // Если в ряду кнопок нет видимой кнопки «Торренты», плагин добавляет свою
     // (перед «Избранным») и открывает по ней поиск торрентов для этого фильма.
-    var ADD_TORRENT_BUTTON = true;
+    var ADD_TORRENT_BUTTON = false;
 
     function addTorrentButton(e) {
         if (!ADD_TORRENT_BUTTON || !e || e.type !== 'complite') return;
