@@ -26,8 +26,7 @@
     // Всегда показывать надписи у кнопок («Торренты», «Избранное»), а не только при наведении
     var SHOW_LABELS = true;
 
-    // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта,
-    // консоль, диалог «Выберите действие») — чёрные, а не серые
+    // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта) — чёрные, а не серые
     var BLACK_PANELS = true;
 
     // Все правила стилей — одним блоком
@@ -42,35 +41,10 @@
                ' width: auto !important; }';
     }
     if (BLACK_PANELS) {
-        // Контейнеры окон: настройки, выбор (selectbox), модальные окна, уведомления
-        css += 'body .settings__content, body .selectbox__content, body .selectbox__body,' +
-               ' body .selectbox__scroll, body .modal__content, body .notice__content,' +
-               // Консоль (точные имена классов зависят от версии Lampa, поэтому по части имени)
-               ' body .console, body [class*="console__content"], body [class*="console__body"],' +
-               ' body [class*="console__wrap"], body [class*="console__layer"],' +
-               ' body [class*="console__window"], body [class*="console__panel"],' +
-               ' body [class*="console__list"], body [class*="console__sidebar"] {' +
+        css += 'body .settings__content, body .selectbox__content, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important;' +
                ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
-               // Диалог «Выберите действие»: заголовок, список и сами пункты (кроме выбранного — он остаётся светлым)
-               'body [class*="selectbox__"]:not(.focus):not(.hover),' +
-               ' body .selectbox-item:not(.focus):not(.hover) {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; box-shadow: none !important;' +
-               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important;' +
-               ' filter: none !important; }' +
-               // Окна, найденные скриптом по тексту (см. darkenDialog)
-               'body .hhb-box {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; box-shadow: none !important; opacity: 1 !important;' +
-               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important;' +
-               ' filter: none !important; }' +
-               'body .hhb-item:not(.focus):not(.hover) {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; box-shadow: none !important;' +
-               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
-               'body .settings__head, body [class*="console__head"] {' +
+               'body .settings__head, body .selectbox__head {' +
                ' background: transparent !important; }';
     }
     var style = document.createElement('style');
@@ -160,66 +134,6 @@
         return hidden;
     }
 
-    // ===== Диалог «Выберите действие» — чёрный =====
-    // Окно ищется по тексту, поэтому названия классов знать не нужно.
-    var DIALOG_TEXT = 'Выберите действие';
-
-    function darkenDialog(root) {
-        try {
-            if (!root || root.nodeType !== 1) return;
-            var txt = root.textContent || '';
-            if (txt.length > 5000 || txt.indexOf(DIALOG_TEXT) === -1) return;
-            var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-            var node;
-            while ((node = walker.nextNode())) {
-                if (node.nodeValue.indexOf(DIALOG_TEXT) !== -1) break;
-            }
-            if (!node || !node.parentElement) return;
-
-            // поднимаемся от заголовка вверх, пока элемент меньше экрана (затемняющий слой на весь экран не трогаем)
-            var el = node.parentElement, top = null, guard = 0;
-            while (el && el !== document.body && el !== document.documentElement && guard++ < 12) {
-                var r = el.getBoundingClientRect();
-                if (r.width < window.innerWidth * 0.9 || r.height < window.innerHeight * 0.9) {
-                    top = el;
-                } else break;
-                el = el.parentElement;
-            }
-            if (!top) return;
-
-            top.classList.add('hhb-box');
-            var all = top.querySelectorAll('*');
-            for (var i = 0; i < all.length; i++) {
-                var e = all[i];
-                if (e.classList.contains('selector')) e.classList.add('hhb-item');
-                else if (!e.closest('.selector')) e.classList.add('hhb-box');
-            }
-        } catch (err) {}
-    }
-
-    // ===== Заголовок «Главная - CUB» → «Главная» =====
-    // Убирает « - CUB» (и «– CUB», «— CUB») в конце заголовка в верхней панели
-    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*CUB\s*$/i;
-
-    function fixHeadTitle() {
-        var titles = document.querySelectorAll('.head__title');
-        for (var i = 0; i < titles.length; i++) {
-            var el = titles[i];
-            if (!TITLE_REGEX.test(el.textContent || '')) continue;
-            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-            var node;
-            while ((node = walker.nextNode())) {
-                if (TITLE_REGEX.test(node.nodeValue)) {
-                    node.nodeValue = node.nodeValue.replace(TITLE_REGEX, '');
-                }
-            }
-            // запасной вариант: текст разбит на несколько узлов
-            if (TITLE_REGEX.test(el.textContent || '') && !el.children.length) {
-                el.textContent = el.textContent.replace(TITLE_REGEX, '');
-            }
-        }
-    }
-
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
     // Изменения собираем за весь пакет и каждый элемент проверяем один раз.
@@ -244,20 +158,17 @@
         var r;
         for (r = 0; r < roots.length; r++) {
             if (checkTree(roots[r])) hidden = true;
-            darkenDialog(roots[r]);
         }
         for (r = 0; r < sels.length; r++) {
             sels[r]._hhbQ = false;
             if (checkEl(sels[r])) hidden = true;
         }
-        fixHeadTitle();
         if (hidden) refreshController();
     });
 
 
     function start() {
         if (checkTree(document.body)) refreshController();
-        fixHeadTitle();
         observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
