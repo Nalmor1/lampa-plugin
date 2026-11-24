@@ -55,10 +55,11 @@
         for (c = 0; c < KEEP_BUTTON_CLASSES.length; c++) {
             if (el.classList.contains(KEEP_BUTTON_CLASSES[c])) return false;
         }
+        var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (text.indexOf('торрент') !== -1 || String(el.className).toLowerCase().indexOf('torrent') !== -1) return false;
         for (c = 0; c < HIDE_BUTTON_CLASSES.length; c++) {
             if (el.classList.contains(HIDE_BUTTON_CLASSES[c])) return true;
         }
-        var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
         for (var k = 0; k < HIDE_BUTTON_TEXTS.length; k++) {
             if (text === HIDE_BUTTON_TEXTS[k]) return true;
         }
@@ -119,11 +120,17 @@
             var card = (e.data && e.data.movie) || e.object.card;
             if (!card) return;
 
-            // Значок в стиле µTorrent: тёмный круг с белой буквой «µ» (как у заводской кнопки)
+            // Значок в стиле µTorrent: круг цвета текста кнопки с «вырезанной» буквой «µ».
+            // Цвет сам меняется вместе с кнопкой: светлый круг обычно, тёмный при наведении.
+            var mu = '<path d="M11.5 9 V26"/>' +
+                '<path d="M11.5 18.5 C11.5 22.5 14 24 17 24 C20 24 22.5 22.5 22.5 19 V9"/>' +
+                '<path d="M22.5 19 V24.5 Q22.5 26 24.5 26"/>';
             var icon = '<svg width="34" height="34" viewBox="0 0 34 34">' +
-                '<circle cx="17" cy="17" r="16" fill="#1a1a1a"/>' +
-                '<text x="17" y="24.5" text-anchor="middle" font-size="23" font-weight="bold" ' +
-                'font-family="Arial, Helvetica, sans-serif" fill="#ffffff">\u00b5</text></svg>';
+                '<defs><mask id="hhb-mu" maskUnits="userSpaceOnUse" x="0" y="0" width="34" height="34">' +
+                '<rect width="34" height="34" fill="#fff"/>' +
+                '<g fill="none" stroke="#000" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">' +
+                mu + '</g></mask></defs>' +
+                '<circle cx="17" cy="17" r="16" fill="currentColor" mask="url(#hhb-mu)"/></svg>';
             var btn = $('<div class="full-start__button selector view--torrent">' + icon +
                 '<span>Торренты</span></div>');
 
