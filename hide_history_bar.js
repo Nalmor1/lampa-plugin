@@ -1,16 +1,41 @@
 (function () {
     'use strict';
 
-    // Текст полосы, которую нужно скрыть (можно добавить другие варианты)
-    var TEXTS = ['нет истории просмотра'];
-    var CLASS = 'hhb-invisible';
+    // ===== НАСТРОЙКИ =====
 
+    // 1) Строки с таким текстом скрываются полностью
+    var TEXTS = ['нет истории просмотра'];
+
+    // 2) На экране фильма в ряду кнопок остаются ТОЛЬКО кнопки с этими словами.
+    //    Всё остальное (Смотреть, Подписаться, три точки и т.д.) скрывается.
+    //    Чтобы оставить ещё одну кнопку, добавьте слово из её названия.
+    var KEEP_BUTTONS = ['торрент', 'избранн'];
+
+    // 3) Кнопки без надписи (например, три точки), которые скрываются по названию класса
+    var HIDE_BUTTON_CLASSES = ['button--options', 'button--subscribe', 'button--more'];
+
+    // 4) Всегда показывать надписи у оставшихся кнопок (true) или как раньше (false)
+    var SHOW_LABELS = true;
+
+    // ======================
+
+    var CLASS = 'hhb-invisible';
+    var BUTTONS_BOX = '.full-start__buttons, .full-start-new__buttons';
+
+    var css = '.' + CLASS + ' { display: none !important; }';
+    if (SHOW_LABELS) {
+        css += '.full-start__buttons .full-start__button span,' +
+               '.full-start-new__buttons .full-start__button span {' +
+               ' display: inline !important; opacity: 1 !important;' +
+               ' visibility: visible !important; max-width: none !important;' +
+               ' width: auto !important; }';
+    }
     var style = document.createElement('style');
-    style.textContent = '.' + CLASS + ' { display: none !important; }';
+    style.textContent = css;
     document.head.appendChild(style);
 
     // Заставляет Lampa заново собрать элементы для курсора,
-    // чтобы он не "залипал" на скрытой полосе.
+    // чтобы он не "залипал" на скрытых элементах.
     function refreshController() {
         try {
             if (window.Lampa && Lampa.Controller) {
@@ -20,8 +45,12 @@
         } catch (e) {}
     }
 
-    function matches(el) {
-        var text = (el.textContent || '').trim().toLowerCase();
+    function getText(el) {
+        return (el.textContent || '').trim().toLowerCase();
+    }
+
+    function isHistoryBar(el) {
+        var text = getText(el);
         if (!text || text.length > 60) return false;
         for (var j = 0; j < TEXTS.length; j++) {
             if (text.indexOf(TEXTS[j]) !== -1) return true;
@@ -29,13 +58,33 @@
         return false;
     }
 
-    function checkEl(el) {
-        if (!el.classList || el.classList.contains(CLASS)) return false;
-        if (!el.classList.contains('selector')) return false;
-        if (!matches(el)) return false;
+    function shouldHideButton(el) {
+        if (!el.closest || !el.closest(BUTTONS_BOX)) return false;
+
+        for (var c = 0; c < HIDE_BUTTON_CLASSES.length; c++) {
+            if (el.classList.contains(HIDE_BUTTON_CLASSES[c])) return true;
+        }
+
+        var text = getText(el);
+        if (!text) return false; // без надписи и без известного класса не трогаем
+
+        for (var k = 0; k < KEEP_BUTTONS.length; k++) {
+            if (text.indexOf(KEEP_BUTTONS[k]) !== -1) return false;
+        }
+        return true;
+    }
+
+    function hide(el) {
         el.classList.remove('selector', 'focus', 'hover'); // курсор её больше не касается
         el.classList.add(CLASS);                           // и она не занимает место
         return true;
+    }
+
+    function checkEl(el) {
+        if (!el.classList || el.classList.contains(CLASS)) return false;
+        if (!el.classList.contains('selector')) return false;
+        if (isHistoryBar(el) || shouldHideButton(el)) return hide(el);
+        return false;
     }
 
     function checkTree(root) {
@@ -49,7 +98,7 @@
     }
 
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
-    // поэтому полоса скрывается мгновенно и не успевает мелькнуть.
+    // поэтому элементы скрываются мгновенно и не успевают мелькнуть.
     var observer = new MutationObserver(function (mutations) {
         var hidden = false;
         for (var i = 0; i < mutations.length; i++) {
@@ -57,7 +106,6 @@
             for (var k = 0; k < m.addedNodes.length; k++) {
                 if (checkTree(m.addedNodes[k])) hidden = true;
             }
-            // текст мог появиться внутри уже существующей полосы
             var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
             var s = t && t.closest ? t.closest('.selector') : null;
             if (s && checkEl(s)) hidden = true;
