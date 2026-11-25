@@ -169,141 +169,6 @@
     }
 
 
-    // ===== Чёрные диалоги по заголовку (например, «Выберите действие») =====
-    // Плагин находит заголовок окна и делает чёрным само окно и все его блоки,
-    // кроме выбранного пункта (он остаётся светлым, чтобы было видно курсор).
-    // Названия классов знать не нужно.
-    var BLACK_DIALOGS = ['выберите действие'];   // заголовки окон, маленькими буквами
-    var DEBUG_DIALOG = true;                      // на 15 секунд показывает, что покрашено
-    var dialogs = [];                             // [{title, els}]
-
-    var dlgStyle = document.createElement('style');
-    dlgStyle.textContent = '.hhb-black-d:not(.focus):not(.hover) {' +
-        ' background: #000 !important; background-color: #000 !important;' +
-        ' background-image: none !important; box-shadow: none !important;' +
-        ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
-    document.head.appendChild(dlgStyle);
-
-
-    // Короткая надпись на экране для проверки (видно, что загрузилась именно эта версия плагина)
-    var BUILD = 'build 21';
-    function showNote(text, ms) {
-        try {
-            var old = document.getElementById('hhb-note');
-            if (old && old.parentNode) old.parentNode.removeChild(old);
-            var div = document.createElement('div');
-            div.id = 'hhb-note';
-            div.style.cssText = 'position:fixed;right:8px;top:8px;z-index:99999;max-width:60vw;' +
-                'background:rgba(0,0,0,.9);color:#0f0;font:16px/1.3 monospace;padding:6px;' +
-                'white-space:pre-wrap;pointer-events:none;';
-            div.textContent = text;
-            document.body.appendChild(div);
-            setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, ms || 8000);
-        } catch (e) {}
-    }
-
-    function hasBg(cs) {
-        var bg = cs.backgroundColor;
-        return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') ||
-               (cs.backgroundImage && cs.backgroundImage !== 'none');
-    }
-
-    function showDlgDebug(lines) {
-        var old = document.getElementById('hhb-debug-dlg');
-        if (old && old.parentNode) old.parentNode.removeChild(old);
-        var div = document.createElement('div');
-        div.id = 'hhb-debug-dlg';
-        div.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99999;max-width:95vw;' +
-            'background:rgba(0,0,0,.9);color:#0f0;font:14px/1.3 monospace;padding:6px;' +
-            'white-space:pre-wrap;pointer-events:none;';
-        div.textContent = 'Окно: покрашено блоков ' + lines.length + '\n' + lines.join('\n');
-        document.body.appendChild(div);
-        setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, 15000);
-    }
-
-    function cleanupDialogs() {
-        for (var r = dialogs.length - 1; r >= 0; r--) {
-            if (!document.documentElement.contains(dialogs[r].title)) {
-                for (var e = 0; e < dialogs[r].els.length; e++) dialogs[r].els[e].classList.remove('hhb-black-d');
-                dialogs.splice(r, 1);
-            }
-        }
-    }
-
-    // Красит окно по найденному заголовку. Возвращает true, если окно найдено (новое или уже покрашенное).
-    function blackenFromTitle(titleEl) {
-        if (!titleEl) return false;
-        for (var k = 0; k < dialogs.length; k++) if (dialogs[k].title === titleEl) return true;
-
-        // окно = ближайший блок вокруг заголовка, где есть хотя бы два пункта выбора
-        var box = titleEl.parentElement;
-        while (box && box !== document.body && box.querySelectorAll('.selector').length < 2) box = box.parentElement;
-        if (!box || box === document.body) box = titleEl.parentElement && titleEl.parentElement.parentElement;
-        if (!box) {
-            if (DEBUG_DIALOG) showNote('Окно: не нашёл блок вокруг заголовка', 12000);
-            return false;
-        }
-
-        var rec = { title: titleEl, els: [] };
-        var lines = [];
-        var list = [box].concat(Array.prototype.slice.call(box.querySelectorAll('*')));
-        for (var i = 0; i < list.length; i++) {
-            var el = list[i];
-            if (!hasBg(window.getComputedStyle(el))) continue;
-            el.classList.add('hhb-black-d');
-            rec.els.push(el);
-            lines.push(el.tagName.toLowerCase() + '.' + String(el.className).replace(/\s+/g, '.').slice(0, 60));
-        }
-        dialogs.push(rec);
-        if (DEBUG_DIALOG) showDlgDebug(lines);
-        return true;
-    }
-
-    // Окно, появившееся как новый блок на странице
-    function blackenDialog(root) {
-        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-        var node;
-        while ((node = walker.nextNode())) {
-            var txt = (node.nodeValue || '').trim().toLowerCase();
-            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1) { blackenFromTitle(node.parentElement); return; }
-        }
-    }
-
-    // Поиск окна по всей странице: нужен, если оно не добавляется как новый блок,
-    // а появляется другим способом (например, показывается уже готовое).
-    function scanDialogs() {
-        var found = false;
-        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-        var node;
-        while ((node = walker.nextNode())) {
-            var txt = (node.nodeValue || '').trim().toLowerCase();
-            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1 && blackenFromTitle(node.parentElement)) found = true;
-        }
-        return found;
-    }
-
-    // Окно выхода появляется при долгом нажатии «Назад»: после такого нажатия
-    // несколько секунд ищем окно по странице.
-    var BACK_KEYS = [4, 8, 27, 166, 461, 10009];
-    var scanRun = null, sawRepeat = false;
-    function onBackKey(e) {
-        if (BACK_KEYS.indexOf(e.keyCode) === -1) return;
-        if (e.repeat) sawRepeat = true;
-        if (scanRun) return;
-        var n = 0, foundInRun = false;
-        scanRun = setInterval(function () {
-            n++;
-            try { if (scanDialogs()) foundInRun = true; } catch (err) {}
-            if (n >= 12) {
-                clearInterval(scanRun);
-                scanRun = null;
-                if (DEBUG_DIALOG && sawRepeat && !foundInRun) {
-                    showNote('Окно: после долгого «Назад» заголовок не найден на странице', 8000);
-                }
-                sawRepeat = false;
-            }
-        }, 300);
-    }
 
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
@@ -328,14 +193,6 @@
             var r;
             for (r = 0; r < roots.length; r++) {
                 if (checkTree(roots[r])) hidden = true;
-                if (roots[r].childElementCount <= 30) {
-                    var dtxt = (roots[r].textContent || '').toLowerCase();
-                    if (dtxt.length < 600) {
-                        for (var d = 0; d < BLACK_DIALOGS.length; d++) {
-                            if (dtxt.indexOf(BLACK_DIALOGS[d]) !== -1) { blackenDialog(roots[r]); break; }
-                        }
-                    }
-                }
                 if (!headChanged && roots[r].classList &&
                     (roots[r].classList.contains('head') || roots[r].classList.contains('head__title'))) headChanged = true;
             }
@@ -343,7 +200,6 @@
                 sels[r]._hhbQ = false;
                 if (checkEl(sels[r])) hidden = true;
             }
-            cleanupDialogs();
             if (headChanged) fixHeadTitle();
             attachHeadObserver();
             if (hidden) refreshController();
@@ -377,8 +233,6 @@
         fixHeadTitle();
         observer.observe(document.body, { childList: true, subtree: true });
         attachHeadObserver();
-        window.addEventListener('keydown', onBackKey, true);
-        if (DEBUG_DIALOG) showNote('Плагин загружен: ' + BUILD, 8000);
     }
 
     if (window.appready) start();
