@@ -29,6 +29,9 @@
     // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта) — чёрные, а не серые
     var BLACK_PANELS = true;
 
+    // Прятать колесо загрузки в центре экрана (при переходе по вкладкам и разделам)
+    var HIDE_LOADER = true;
+
     // Все правила стилей — одним блоком
     var css = '.' + CLASS + ',.head [class*="black-friday"]';
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
@@ -48,6 +51,9 @@
                ' background-image: none !important; }' +
                'body .settings__head {' +
                ' background: transparent !important; }';
+    }
+    if (HIDE_LOADER) {
+        css += '.activity__loader { display: none !important; }';
     }
     var style = document.createElement('style');
     style.textContent = css;
