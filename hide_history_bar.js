@@ -32,6 +32,9 @@
     // Прятать колесо загрузки в центре экрана (при переходе по вкладкам и разделам)
     var HIDE_LOADER = true;
 
+    // Прятать квадратик с плюсом («добавить отзыв») рядом с комментариями на экране фильма
+    var HIDE_ADD_REVIEW = true;
+
     // Все правила стилей — одним блоком
     var css = '.' + CLASS + ',.head [class*="black-friday"]';
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
@@ -54,6 +57,9 @@
     }
     if (HIDE_LOADER) {
         css += '.activity__loader { display: none !important; }';
+    }
+    if (HIDE_ADD_REVIEW) {
+        css += '.full-review-add { display: none !important; }';
     }
     var style = document.createElement('style');
     style.textContent = css;
@@ -126,6 +132,7 @@
         }
         if (isHeadTarget(el)) return hideEl(el);
         if (!cl.contains('selector')) return false;
+        if (HIDE_ADD_REVIEW && cl.contains('full-review-add')) return hideEl(el);
         if (cl.contains('card')) return false; // карточки фильмов: сотни штук, текст читать не нужно
         // текст читаем один раз и используем во всех проверках
         var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
