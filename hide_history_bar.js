@@ -30,7 +30,7 @@
     var BLACK_PANELS = true;
 
     // Все правила стилей — одним блоком
-    var css = '.' + CLASS + ',[class*="black-friday"]';
+    var css = '.' + CLASS + ',.head [class*="black-friday"]';
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
     css += ' { display: none !important; }';
     if (SHOW_LABELS) {
@@ -41,10 +41,20 @@
                ' width: auto !important; }';
     }
     if (BLACK_PANELS) {
-        css += 'body .settings__content, body .selectbox__content, body .modal__content, body .notice__content {' +
+        // Контейнеры окон: настройки, выбор (selectbox), модальные окна, уведомления
+        css += 'body .settings__content, body .selectbox__content, body .selectbox__body,' +
+               ' body .selectbox__scroll, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
+               ' background-image: none !important;' +
                ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
-               'body .settings__head, body .selectbox__head {' +
+               // Окна выбора: заголовок, список и пункты (кроме выбранного — он остаётся светлым)
+               'body [class*="selectbox__"]:not(.focus):not(.hover),' +
+               ' body .selectbox-item:not(.focus):not(.hover) {' +
+               ' background: #000 !important; background-color: #000 !important;' +
+               ' background-image: none !important; box-shadow: none !important;' +
+               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important;' +
+               ' filter: none !important; }' +
+               'body .settings__head {' +
                ' background: transparent !important; }';
     }
     var style = document.createElement('style');
@@ -118,6 +128,7 @@
         }
         if (isHeadTarget(el)) return hideEl(el);
         if (!cl.contains('selector')) return false;
+        if (cl.contains('card')) return false; // карточки фильмов: сотни штук, текст читать не нужно
         // текст читаем один раз и используем во всех проверках
         var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (matchesText(text) || shouldHideButton(el, text) || shouldHideTab(text)) return hideEl(el);
@@ -134,42 +145,176 @@
         return hidden;
     }
 
+    // ===== Заголовок «Главная - CUB» → «Главная» =====
+    // Убирает « - CUB» (и «– CUB», «— CUB») в конце заголовка в верхней панели
+    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*CUB\s*$/i;
+
+    function fixHeadTitle() {
+        var titles = document.querySelectorAll('.head__title');
+        for (var i = 0; i < titles.length; i++) {
+            var el = titles[i];
+            if (!TITLE_REGEX.test(el.textContent || '')) continue;
+            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+            var node;
+            while ((node = walker.nextNode())) {
+                if (TITLE_REGEX.test(node.nodeValue)) {
+                    node.nodeValue = node.nodeValue.replace(TITLE_REGEX, '');
+                }
+            }
+            // запасной вариант: текст разбит на несколько узлов
+            if (TITLE_REGEX.test(el.textContent || '') && !el.children.length) {
+                el.textContent = el.textContent.replace(TITLE_REGEX, '');
+            }
+        }
+    }
+
+
+    // ===== Чёрные диалоги по заголовку (например, «Выберите действие») =====
+    // Плагин находит заголовок окна и делает чёрным само окно и все его блоки,
+    // кроме выбранного пункта (он остаётся светлым, чтобы было видно курсор).
+    // Названия классов знать не нужно.
+    var BLACK_DIALOGS = ['выберите действие'];   // заголовки окон, маленькими буквами
+    var DEBUG_DIALOG = true;                      // на 15 секунд показывает, что покрашено
+    var dialogs = [];                             // [{title, els}]
+
+    var dlgStyle = document.createElement('style');
+    dlgStyle.textContent = '.hhb-black-d:not(.focus):not(.hover) {' +
+        ' background: #000 !important; background-color: #000 !important;' +
+        ' background-image: none !important; box-shadow: none !important;' +
+        ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
+    document.head.appendChild(dlgStyle);
+
+    function hasBg(cs) {
+        var bg = cs.backgroundColor;
+        return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') ||
+               (cs.backgroundImage && cs.backgroundImage !== 'none');
+    }
+
+    function showDlgDebug(lines) {
+        var old = document.getElementById('hhb-debug-dlg');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        var div = document.createElement('div');
+        div.id = 'hhb-debug-dlg';
+        div.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99999;max-width:95vw;' +
+            'background:rgba(0,0,0,.9);color:#0f0;font:14px/1.3 monospace;padding:6px;' +
+            'white-space:pre-wrap;pointer-events:none;';
+        div.textContent = 'Окно: покрашено блоков ' + lines.length + '\n' + lines.join('\n');
+        document.body.appendChild(div);
+        setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, 15000);
+    }
+
+    function cleanupDialogs() {
+        for (var r = dialogs.length - 1; r >= 0; r--) {
+            if (!document.documentElement.contains(dialogs[r].title)) {
+                for (var e = 0; e < dialogs[r].els.length; e++) dialogs[r].els[e].classList.remove('hhb-black-d');
+                dialogs.splice(r, 1);
+            }
+        }
+    }
+
+    function blackenDialog(root) {
+        // найти заголовок внутри добавленного блока
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        var node, titleEl = null;
+        while ((node = walker.nextNode())) {
+            var txt = (node.nodeValue || '').trim().toLowerCase();
+            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1) { titleEl = node.parentElement; break; }
+        }
+        if (!titleEl) return;
+        for (var k = 0; k < dialogs.length; k++) if (dialogs[k].title === titleEl) return;
+
+        // окно = ближайший блок вокруг заголовка, где есть хотя бы два пункта выбора
+        var box = titleEl.parentElement;
+        while (box && box !== document.body && box.querySelectorAll('.selector').length < 2) box = box.parentElement;
+        if (!box || box === document.body) box = titleEl.parentElement && titleEl.parentElement.parentElement;
+        if (!box) return;
+
+        var rec = { title: titleEl, els: [] };
+        var lines = [];
+        var list = [box].concat(Array.prototype.slice.call(box.querySelectorAll('*')));
+        for (var i = 0; i < list.length; i++) {
+            var el = list[i];
+            if (!hasBg(window.getComputedStyle(el))) continue;
+            el.classList.add('hhb-black-d');
+            rec.els.push(el);
+            lines.push(el.tagName.toLowerCase() + '.' + String(el.className).replace(/\s+/g, '.').slice(0, 60));
+        }
+        dialogs.push(rec);
+        if (DEBUG_DIALOG) showDlgDebug(lines);
+    }
+
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
     // Изменения собираем за весь пакет и каждый элемент проверяем один раз.
     var observer = new MutationObserver(function (mutations) {
-        var hidden = false;
-        var roots = [], sels = [];
-        for (var i = 0; i < mutations.length; i++) {
-            var m = mutations[i];
-            if (m.type === 'attributes') { // сменился класс (например, добавилась анимация)
-                var tg = m.target;
-                if (tg && tg.nodeType === 1 && tg.classList && tg.classList.contains('head__action') && checkEl(tg)) hidden = true;
-                continue;
+        try {
+            var hidden = false;
+            var roots = [], sels = [];
+            var headChanged = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var m = mutations[i];
+                for (var k = 0; k < m.addedNodes.length; k++) {
+                    if (m.addedNodes[k].nodeType === 1) roots.push(m.addedNodes[k]);
+                }
+                // текст мог появиться внутри уже существующего элемента
+                var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
+                var s = t && t.closest ? t.closest('.selector') : null;
+                if (s && !s._hhbQ) { s._hhbQ = true; sels.push(s); }
+                // менялась ли верхняя панель (только тогда нужно поправлять заголовок)
+                if (!headChanged && t && t.closest && t.closest('.head, .head__title')) headChanged = true;
             }
-            for (var k = 0; k < m.addedNodes.length; k++) {
-                if (m.addedNodes[k].nodeType === 1) roots.push(m.addedNodes[k]);
+            var r;
+            for (r = 0; r < roots.length; r++) {
+                if (checkTree(roots[r])) hidden = true;
+                if (roots[r].childElementCount <= 30) {
+                    var dtxt = (roots[r].textContent || '').toLowerCase();
+                    if (dtxt.length < 600) {
+                        for (var d = 0; d < BLACK_DIALOGS.length; d++) {
+                            if (dtxt.indexOf(BLACK_DIALOGS[d]) !== -1) { blackenDialog(roots[r]); break; }
+                        }
+                    }
+                }
+                if (!headChanged && roots[r].classList &&
+                    (roots[r].classList.contains('head') || roots[r].classList.contains('head__title'))) headChanged = true;
             }
-            // текст мог появиться внутри уже существующего элемента
-            var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
-            var s = t && t.closest ? t.closest('.selector') : null;
-            if (s && !s._hhbQ) { s._hhbQ = true; sels.push(s); }
-        }
-        var r;
-        for (r = 0; r < roots.length; r++) {
-            if (checkTree(roots[r])) hidden = true;
-        }
-        for (r = 0; r < sels.length; r++) {
-            sels[r]._hhbQ = false;
-            if (checkEl(sels[r])) hidden = true;
-        }
-        if (hidden) refreshController();
+            for (r = 0; r < sels.length; r++) {
+                sels[r]._hhbQ = false;
+                if (checkEl(sels[r])) hidden = true;
+            }
+            cleanupDialogs();
+            if (headChanged) fixHeadTitle();
+            attachHeadObserver();
+            if (hidden) refreshController();
+        } catch (err) {}
     });
 
+    // Верхняя панель: следим за сменой классов (например, добавилась анимация или вернулся selector).
+    // Только она, а не весь экран, чтобы не реагировать на каждое движение курсора.
+    var headObserver = new MutationObserver(function (mutations) {
+        try {
+            var hidden = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var tg = mutations[i].target;
+                if (tg && tg.nodeType === 1 && tg.classList && tg.classList.contains('head__action') && checkEl(tg)) hidden = true;
+            }
+            if (hidden) refreshController();
+        } catch (err) {}
+    });
+    var headWatched = null;
+
+    function attachHeadObserver() {
+        var head = document.querySelector('.head');
+        if (!head || head === headWatched) return;
+        headObserver.disconnect();
+        headObserver.observe(head, { subtree: true, attributes: true, attributeFilter: ['class'] });
+        headWatched = head;
+    }
 
     function start() {
         if (checkTree(document.body)) refreshController();
-        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        fixHeadTitle();
+        observer.observe(document.body, { childList: true, subtree: true });
+        attachHeadObserver();
     }
 
     if (window.appready) start();
