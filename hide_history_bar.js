@@ -46,11 +46,6 @@
                ' body .selectbox__scroll, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
                ' background-image: none !important; }' +
-               // Окна выбора: заголовок, список и пункты (кроме выбранного — он остаётся светлым)
-               'body [class*="selectbox__"]:not(.focus):not(.hover),' +
-               ' body .selectbox-item:not(.focus):not(.hover) {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; }' +
                'body .settings__head {' +
                ' background: transparent !important; }';
     }
@@ -142,6 +137,31 @@
         return hidden;
     }
 
+    // ===== Заголовок «Главная - CUB» → «Главная» =====
+    // Убирает « - CUB» (и «– CUB», «— CUB») в конце заголовка в верхней панели
+    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*CUB\s*$/i;
+
+    function fixHeadTitle() {
+        var titles = document.querySelectorAll('.head__title');
+        for (var i = 0; i < titles.length; i++) {
+            var el = titles[i];
+            if (!TITLE_REGEX.test(el.textContent || '')) continue;
+            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+            var node;
+            while ((node = walker.nextNode())) {
+                if (TITLE_REGEX.test(node.nodeValue)) {
+                    node.nodeValue = node.nodeValue.replace(TITLE_REGEX, '');
+                }
+            }
+            // запасной вариант: текст разбит на несколько узлов
+            if (TITLE_REGEX.test(el.textContent || '') && !el.children.length) {
+                el.textContent = el.textContent.replace(TITLE_REGEX, '');
+            }
+        }
+    }
+
+
+
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
     // Изменения собираем за весь пакет и каждый элемент проверяем один раз.
@@ -149,6 +169,7 @@
         try {
             var hidden = false;
             var roots = [], sels = [];
+            var headChanged = false;
             for (var i = 0; i < mutations.length; i++) {
                 var m = mutations[i];
                 for (var k = 0; k < m.addedNodes.length; k++) {
@@ -158,15 +179,20 @@
                 var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
                 var s = t && t.closest ? t.closest('.selector') : null;
                 if (s && !s._hhbQ) { s._hhbQ = true; sels.push(s); }
+                // менялась ли верхняя панель (только тогда нужно поправлять заголовок)
+                if (!headChanged && t && t.closest && t.closest('.head, .head__title')) headChanged = true;
             }
             var r;
             for (r = 0; r < roots.length; r++) {
                 if (checkTree(roots[r])) hidden = true;
+                if (!headChanged && roots[r].classList &&
+                    (roots[r].classList.contains('head') || roots[r].classList.contains('head__title'))) headChanged = true;
             }
             for (r = 0; r < sels.length; r++) {
                 sels[r]._hhbQ = false;
                 if (checkEl(sels[r])) hidden = true;
             }
+            if (headChanged) fixHeadTitle();
             attachHeadObserver();
             if (hidden) refreshController();
         } catch (err) {}
@@ -196,6 +222,7 @@
 
     function start() {
         if (checkTree(document.body)) refreshController();
+        fixHeadTitle();
         observer.observe(document.body, { childList: true, subtree: true });
         attachHeadObserver();
     }
