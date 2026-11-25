@@ -137,9 +137,9 @@
         return hidden;
     }
 
-    // ===== Заголовок «Главная - CUB» → «Главная» =====
-    // Убирает « - CUB» (и «– CUB», «— CUB») в конце заголовка в верхней панели
-    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*CUB\s*$/i;
+    // ===== Заголовок «Главная - CUB» / «Главная - TMDB» → «Главная» =====
+    // Убирает « - CUB» и « - TMDB» (и с тире «–», «—») в конце заголовка в верхней панели
+    var TITLE_REGEX = /\s*[-\u2013\u2014]\s*(?:CUB|TMDB)\s*$/i;
 
     function fixHeadTitle() {
         var titles = document.querySelectorAll('.head__title');
