@@ -45,15 +45,12 @@
         css += 'body .settings__content, body .selectbox__content, body .selectbox__body,' +
                ' body .selectbox__scroll, body .modal__content, body .notice__content {' +
                ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important;' +
-               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' +
+               ' background-image: none !important; }' +
                // Окна выбора: заголовок, список и пункты (кроме выбранного — он остаётся светлым)
                'body [class*="selectbox__"]:not(.focus):not(.hover),' +
                ' body .selectbox-item:not(.focus):not(.hover) {' +
                ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; box-shadow: none !important;' +
-               ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important;' +
-               ' filter: none !important; }' +
+               ' background-image: none !important; }' +
                'body .settings__head {' +
                ' background: transparent !important; }';
     }
