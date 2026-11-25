@@ -184,6 +184,24 @@
         ' -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
     document.head.appendChild(dlgStyle);
 
+
+    // Короткая надпись на экране для проверки (видно, что загрузилась именно эта версия плагина)
+    var BUILD = 'build 20';
+    function showNote(text, ms) {
+        try {
+            var old = document.getElementById('hhb-note');
+            if (old && old.parentNode) old.parentNode.removeChild(old);
+            var div = document.createElement('div');
+            div.id = 'hhb-note';
+            div.style.cssText = 'position:fixed;right:8px;top:8px;z-index:99999;max-width:60vw;' +
+                'background:rgba(0,0,0,.9);color:#0f0;font:16px/1.3 monospace;padding:6px;' +
+                'white-space:pre-wrap;pointer-events:none;';
+            div.textContent = text;
+            document.body.appendChild(div);
+            setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, ms || 8000);
+        } catch (e) {}
+    }
+
     function hasBg(cs) {
         var bg = cs.backgroundColor;
         return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') ||
@@ -220,14 +238,20 @@
             var txt = (node.nodeValue || '').trim().toLowerCase();
             if (txt && BLACK_DIALOGS.indexOf(txt) !== -1) { titleEl = node.parentElement; break; }
         }
-        if (!titleEl) return;
+        if (!titleEl) {
+            if (DEBUG_DIALOG) showNote('Окно: заголовок не найден в ' + root.tagName.toLowerCase() + '.' + String(root.className).slice(0, 40), 12000);
+            return;
+        }
         for (var k = 0; k < dialogs.length; k++) if (dialogs[k].title === titleEl) return;
 
         // окно = ближайший блок вокруг заголовка, где есть хотя бы два пункта выбора
         var box = titleEl.parentElement;
         while (box && box !== document.body && box.querySelectorAll('.selector').length < 2) box = box.parentElement;
         if (!box || box === document.body) box = titleEl.parentElement && titleEl.parentElement.parentElement;
-        if (!box) return;
+        if (!box) {
+            if (DEBUG_DIALOG) showNote('Окно: не нашёл блок вокруг заголовка', 12000);
+            return;
+        }
 
         var rec = { title: titleEl, els: [] };
         var lines = [];
@@ -315,6 +339,7 @@
         fixHeadTitle();
         observer.observe(document.body, { childList: true, subtree: true });
         attachHeadObserver();
+        if (DEBUG_DIALOG) showNote('Плагин загружен: ' + BUILD, 8000);
     }
 
     if (window.appready) start();
