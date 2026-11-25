@@ -29,9 +29,6 @@
     // Боковые панели и окна (настройки, избранное, фильтр, «О приложении», окно аккаунта) — чёрные, а не серые
     var BLACK_PANELS = true;
 
-    // Экран «Расширения» (настройки → Расширения): чёрный фон и чёрные карточки плагинов
-    var BLACK_EXTENSIONS = true;
-
     // Все правила стилей — одним блоком
     var css = '.' + CLASS + ',.head [class*="black-friday"]';
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
@@ -51,20 +48,6 @@
                ' background-image: none !important; }' +
                'body .settings__head {' +
                ' background: transparent !important; }';
-    }
-    if (BLACK_EXTENSIONS) {
-        // Фон экрана и карточки (установленные плагины, «Добавить плагин», рекомендуемые)
-        css += 'body .extensions, body .extensions__body, body .extensions__block {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important; }' +
-               'body .extensions__item, body .extensions__block-add {' +
-               ' background: #000 !important; background-color: #000 !important;' +
-               ' background-image: none !important;' +
-               ' border: 1px solid rgba(255,255,255,0.15) !important; }';
-        // Общий фон приложения, пока открыт экран «Расширения» (отдельным правилом,
-        // чтобы на старых ТВ без поддержки :has не пострадали остальные стили)
-        css += 'body:has(.extensions) .background { background: #000 !important;' +
-               ' background-image: none !important; }';
     }
     var style = document.createElement('style');
     style.textContent = css;
