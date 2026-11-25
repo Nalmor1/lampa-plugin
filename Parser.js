@@ -1,103 +1,36 @@
-/**
- * Lampa Parser Catalog v2
- * Catalog endpoints are configurable; API probes may be affected by CORS.
+/** Lampa Parser Catalog — final UI prototype
+ * Black UI, manual focus/controller handling, selectable list, add/edit entries,
+ * sequential status probes. API probing is best-effort and may be affected by CORS.
  */
 (function () {
   'use strict';
-  if (window.parser_catalog_ready_v2) return;
-  window.parser_catalog_ready_v2 = true;
+  if (window.parser_catalog_final_loaded) return;
+  window.parser_catalog_final_loaded = true;
 
   var catalog = [
-    {name:'JacRed.su', url:'https://jacred.su', key:'', type:'jackett'},
-    {name:'Jac.black', url:'https://jac.black', key:'', type:'jackett'},
-    {name:'Jac.red', url:'https://jac.red', key:'', type:'jackett'},
-    {name:'ru.Jac.black', url:'https://ru.jac.black', key:'', type:'jackett'},
-    {name:'jr.maxvol.pro', url:'https://jr.maxvol.pro', key:'', type:'jackett'}
+    {name:'JacRed.su', url:'https://jacred.su', key:''},
+    {name:'Jac.black', url:'https://jac.black', key:''},
+    {name:'Jac.red', url:'https://jac.red', key:''},
+    {name:'ru.Jac.black', url:'https://ru.jac.black', key:''},
+    {name:'jr.maxvol.pro', url:'https://jr.maxvol.pro', key:''}
   ];
-  var statuses = {}, selected = null, panel = null, busy = false;
+  var statuses = {}, selected = -1, focusIndex = 0, panel = null, busy = false;
+  var controls = [], controllerName = 'parser_catalog_final_controller';
 
-  var css = [
-    '.pcatalog{position:fixed;z-index:99999;left:4%;right:4%;top:5%;bottom:5%;background:#000;color:#fff;',
-    'border:1px solid #404040;border-radius:15px;padding:20px;box-sizing:border-box;font-family:Arial,sans-serif;',
-    'display:flex;flex-direction:column;box-shadow:0 12px 40px #000b}',
-    '.pcatalog *{box-sizing:border-box}.pc-head{display:flex;justify-content:space-between;align-items:center;gap:12px}',
-    '.pc-title{font-size:1.55em;font-weight:bold}.pc-sub{color:#b7b7b7;margin:6px 0 14px}',
-    '.pc-list{overflow:auto;flex:1}.pc-row{border:1px solid #454545;border-radius:11px;padding:12px 15px;margin:7px 0;',
-    'display:flex;align-items:center;justify-content:space-between;gap:14px;background:#101010;cursor:pointer}',
-    '.pc-row.pc-selected{border:3px solid #fff;background:#1b1b1b}.pc-name{font-size:1.05em;font-weight:bold}',
-    '.pc-url{font-size:.82em;color:#aaa;margin-top:4px;word-break:break-all}.pc-state{text-align:right;font-weight:bold}',
-    '.pc-dot{display:inline-block;width:13px;height:13px;border-radius:50%;margin-right:8px;vertical-align:middle}',
-    '.pc-green{background:#35d879;box-shadow:0 0 10px #35d87966}.pc-red{background:#ff4b55;box-shadow:0 0 10px #ff4b5566}',
-    '.pc-yellow{background:#ffc44d;box-shadow:0 0 10px #ffc44d66}.pc-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:13px}',
-    '.pc-btn{background:#252525;border:1px solid #777;color:#fff;border-radius:10px;padding:12px 17px;font-size:1em}',
-    '.pc-btn:focus,.pc-row:focus{outline:3px solid #fff}.pc-legend{color:#bbb;font-size:.85em;margin-top:11px}',
-    '.pc-close{background:#333}@media(max-width:700px){.pcatalog{left:2%;right:2%;top:3%;bottom:3%;padding:13px}}'
-  ].join('');
-
+  var css = '.pcf{position:fixed;z-index:999999;left:4%;right:4%;top:5%;bottom:5%;background:#000;color:#fff;border:1px solid #555;border-radius:14px;padding:18px;box-sizing:border-box;font-family:Arial,sans-serif;display:flex;flex-direction:column;box-shadow:0 12px 40px #000b}.pcf *{box-sizing:border-box}.pcf-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.pcf-title{font-size:1.5em;font-weight:bold}.pcf-sub{color:#aaa;margin:6px 0 12px}.pcf-list{overflow:auto;flex:1}.pcf-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#111;border:2px solid #444;border-radius:10px;padding:10px 13px;margin:6px 0}.pcf-row.selected{border:3px solid #fff;background:#1b1b1b}.pcf-row.focused,.pcf-btn.focused{outline:3px solid #fff;outline-offset:2px}.pcf-name{font-weight:bold}.pcf-url,.pcf-time{color:#aaa;font-size:.82em;margin-top:3px;word-break:break-all}.pcf-state{text-align:right;font-weight:bold;white-space:nowrap}.pcf-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px}.pcf-ok{background:#38d878;box-shadow:0 0 9px #38d87866}.pcf-fail{background:#ff4b55;box-shadow:0 0 9px #ff4b5566}.pcf-testing{background:#ffc44d;box-shadow:0 0 9px #ffc44d66}.pcf-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.pcf-btn{background:#252525;border:1px solid #777;color:#fff;border-radius:9px;padding:11px 15px;font-size:1em}.pcf-legend{color:#aaa;font-size:.85em;margin-top:10px}.pcf-hint{color:#aaa;font-size:.82em;margin-top:5px}@media(max-width:700px){.pcf{left:2%;right:2%;top:3%;bottom:3%;padding:12px}}';
   function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function getState(i){return statuses[i]||{state:'unknown',label:'Не проверен',time:'—'}}
-  function renderRows(){
-    if(!panel)return;
-    var list=panel.find('.pc-list');
-    list.html(catalog.map(function(item,i){
-      var st=getState(i), cls=st.state==='ok'?'pc-green':st.state==='checking'?'pc-yellow':'pc-red';
-      return '<div class="pc-row selector '+(selected===i?'pc-selected':'')+'" data-index="'+i+'"><div><div class="pc-name">'+esc(item.name)+'</div>'+
-        '<div class="pc-url">'+esc(item.url)+'</div></div><div class="pc-state"><span class="pc-dot '+cls+'"></span>'+esc(st.label)+
-        '<div class="pc-url">'+esc(st.time)+'</div></div></div>';
-    }).join(''));
-    list.find('.pc-row').on('hover:enter click',function(){
-      var i=Number($(this).attr('data-index'));selected=i;saveSelected();renderRows();
-    });
-  }
-  function saveSelected(){try{Lampa.Storage.set('parser_catalog_selected_v2',selected)}catch(e){}}
-  function test(i,done){
-    var item=catalog[i], started=Date.now();
-    statuses[i]={state:'checking',label:'Проверяется…',time:'—'};renderRows();
-    var request=new Lampa.Reguest(), finished=false;
-    var endpoint=item.url.replace(/\/+$/,'')+'/api/v2.0/indexers/all/results?apikey='+encodeURIComponent(item.key||'')+'&Query=parser_catalog_test';
-    var timer=setTimeout(function(){if(finished)return;finished=true;request.clear();statuses[i]={state:'fail',label:'Таймаут / ошибка сети',time:'> 5 сек'};renderRows();if(done)done()},5000);
-    request.get(endpoint,function(data){
-      if(finished)return;finished=true;clearTimeout(timer);
-      var ok=data && (typeof data==='object') && (data.Results || data.results || data.Indexers);
-      statuses[i]={state:ok?'ok':'fail',label:ok?'Ответ API':'Ответ без результатов API',time:(Date.now()-started)+' мс'};
-      renderRows();if(done)done();
-    },function(){
-      if(finished)return;finished=true;clearTimeout(timer);
-      statuses[i]={state:'fail',label:'Ошибка / CORS',time:(Date.now()-started)+' мс'};
-      renderRows();if(done)done();
-    });
-  }
-  function checkAll(){
-    if(busy)return;busy=true;var i=0;
-    function next(){if(i>=catalog.length){busy=false;renderRows();return}test(i++,next)}
-    next();
-  }
-  function close(){if(!panel)return; panel.remove();panel=null; $(document).off('keydown.pc_catalog_v2'); Lampa.Controller.toggle('content'); try{Lampa.Controller.enable('content')}catch(e){}}
-  function open(){
-    if(panel)return;
-    if(!$('#pcatalog-style-v2').length)$('<style id="pcatalog-style-v2">'+css+'</style>').appendTo('head');
-    try{selected=Lampa.Storage.get('parser_catalog_selected_v2')}catch(e){selected=null}
-    panel=$('<div class="pcatalog"><div class="pc-head"><div class="pc-title">Каталог парсеров</div><button class="pc-btn selector pc-close">Закрыть</button></div>'+
-      '<div class="pc-sub">Проверка API · время ответа · выбор парсера</div><div class="pc-list"></div>'+
-      '<div class="pc-actions"><button class="pc-btn selector pc-check">Проверить все</button><button class="pc-btn selector pc-test">Проверить выбранный</button>'+
-      '<button class="pc-btn selector pc-add">Добавить адрес</button></div>'+
-      '<div class="pc-legend">🟢 API отвечает · 🔴 Ошибка · 🟡 Проверка · Рамка — выбранный</div></div>').appendTo('body');
-    panel.find('.pc-close').on('hover:enter click',close);
-    panel.find('.pc-check').on('hover:enter click',checkAll);
-    panel.find('.pc-test').on('hover:enter click',function(){if(selected===null){Lampa.Noty.show('Сначала выберите парсер');return}test(selected)});
-    panel.find('.pc-add').on('hover:enter click',function(){
-      var n=prompt('Название парсера');if(!n)return;var u=prompt('URL (например https://host)');if(!u)return;
-      catalog.push({name:n,url:u,key:'',type:'jackett'});renderRows();
-    });
-    renderRows(); Lampa.Controller.toggle('modal'); try{Lampa.Controller.enable('modal')}catch(e){}; $(document).on('keydown.pc_catalog_v2',function(e){var k=e.key||e.keyCode;if(k==='Escape'||k==='Backspace'||k===27||k===8){e.preventDefault();e.stopPropagation();close();return false;}}); panel.find('.pc-close').first().focus();
-  }
-  function addMenu(){
-    var menu=$('.menu .menu__list').first();
-    if(menu.length&&!menu.find('.parser-catalog-menu-v2').length){
-      var item=$('<li class="menu__item selector parser-catalog-menu-v2"><div class="menu__text">Каталог парсеров</div></li>');
-      item.on('hover:enter click',open);menu.append(item);
-    }
-  }
+  function st(i){return statuses[i]||{state:'unknown',label:'Не проверен',time:'—'}}
+  function render(){if(!panel)return;var html='';catalog.forEach(function(x,i){var s=st(i),cls=s.state==='ok'?'pcf-ok':s.state==='checking'?'pcf-testing':'pcf-fail';html+='<div class="pcf-row '+(i===selected?'selected ':'')+(i===focusIndex?'focused':'')+'" data-i="'+i+'"><div><div class="pcf-name">'+esc(x.name)+'</div><div class="pcf-url">'+esc(x.url)+'</div></div><div class="pcf-state"><span class="pcf-dot '+cls+'"></span>'+esc(s.label)+'<div class="pcf-time">'+esc(s.time)+'</div></div></div>'});panel.find('.pcf-list').html(html);controls=panel.find('.pcf-row').toArray();panel.find('.pcf-row').off('click').on('click',function(){focusIndex=Number($(this).attr('data-i'));choose()});panel.find('.pcf-btn').each(function(){this.classList.toggle('focused',controls.length+controlsIndex(this)===focusIndex)});}
+  function controlsIndex(el){return panel.find('.pcf-btn').toArray().indexOf(el)}
+  function totalControls(){return catalog.length+panel.find('.pcf-btn').length}
+  function focusRender(){focusIndex=Math.max(0,Math.min(focusIndex,totalControls()-1));render();}
+  function choose(){if(focusIndex<catalog.length){selected=focusIndex;try{Lampa.Storage.set('parser_catalog_final_selected',selected)}catch(e){}render()}else{var b=panel.find('.pcf-btn').toArray()[focusIndex-catalog.length];if(b)$(b).trigger('click')}}
+  function check(i,done){var item=catalog[i],start=Date.now();statuses[i]={state:'checking',label:'Проверяется…',time:'—'};render();var req=new Lampa.Reguest(),finished=false;var url=item.url.replace(/\/+$/,'')+'/api/v2.0/indexers/all/results?apikey='+encodeURIComponent(item.key||'')+'&Query=parser_catalog_probe';var timer=setTimeout(function(){if(finished)return;finished=true;req.clear();statuses[i]={state:'fail',label:'Таймаут',time:'> 5 сек'};render();if(done)done()},5000);req.get(url,function(data){if(finished)return;finished=true;clearTimeout(timer);var ok=data&&typeof data==='object'&&(data.Results||data.results||data.Indexers);statuses[i]={state:ok?'ok':'fail',label:ok?'API-ответ получен':'Ответ API не распознан',time:(Date.now()-start)+' мс'};render();if(done)done()},function(){if(finished)return;finished=true;clearTimeout(timer);statuses[i]={state:'fail',label:'Ошибка запроса / блокировка',time:(Date.now()-start)+' мс'};render();if(done)done()})}
+  function checkAll(){if(busy)return;busy=true;var i=0;function next(){if(i>=catalog.length){busy=false;render();return}check(i++,next)}next()}
+  function close(){if(!panel)return;panel.remove();panel=null;$(document).off('keydown.pcf');try{Lampa.Controller.clear();Lampa.Controller.toggle('content')}catch(e){};try{Lampa.Controller.remove(controllerName)}catch(e){}}
+  function move(delta){focusIndex+=delta;focusRender()}
+  function open(){if(panel)return;if(!$('#pcf-style').length)$('<style id="pcf-style">'+css+'</style>').appendTo('head');try{selected=Lampa.Storage.get('parser_catalog_final_selected');if(typeof selected!=='number')selected=-1}catch(e){selected=-1}focusIndex=0;panel=$('<div class="pcf"><div class="pcf-head"><div class="pcf-title">Каталог парсеров</div></div><div class="pcf-sub">Выбор · проверка API · время ответа</div><div class="pcf-list"></div><div class="pcf-actions"><button class="pcf-btn">Проверить все</button><button class="pcf-btn">Проверить выбранный</button><button class="pcf-btn">Добавить</button><button class="pcf-btn">Закрыть</button></div><div class="pcf-legend">🟢 Ответ API · 🔴 Ошибка · 🟡 Проверка · Белая рамка — фокус</div><div class="pcf-hint">Навигация: стрелки · OK — выбрать/действие · Back — закрыть</div></div>').appendTo('body');panel.find('.pcf-btn').eq(0).on('click',checkAll);panel.find('.pcf-btn').eq(1).on('click',function(){if(selected<0){Lampa.Noty.show('Выберите парсер в списке');return}check(selected)});panel.find('.pcf-btn').eq(2).on('click',function(){var n=prompt('Название');if(!n)return;var u=prompt('URL сервиса');if(!u)return;catalog.push({name:n,url:u,key:''});statuses[catalog.length-1]={state:'unknown',label:'Не проверен',time:'—'};focusIndex=catalog.length-1;render()});panel.find('.pcf-btn').eq(3).on('click',close);render();try{Lampa.Controller.clear();Lampa.Controller.add(controllerName,{left:function(){move(-1)},right:function(){move(1)},up:function(){move(-1)},down:function(){move(1)},enter:choose,back:close});Lampa.Controller.toggle(controllerName)}catch(e){};$(document).on('keydown.pcf',function(e){var k=e.key||e.keyCode;if(k==='Escape'||k==='Backspace'||k===27||k===8){e.preventDefault();close();return false}})}
+  function addMenu(){var menu=$('.menu .menu__list').first();if(menu.length&&!menu.find('.pcf-menu').length){var it=$('<li class="menu__item selector pcf-menu"><div class="menu__text">Каталог парсеров</div></li>');it.on('hover:enter click',open);menu.append(it)}}
   function init(){addMenu();Lampa.Listener.follow('menu',addMenu)}
   if(window.appready)init();else Lampa.Listener.follow('app',function(e){if(e.type==='ready')init()});
 })();
