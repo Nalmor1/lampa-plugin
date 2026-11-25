@@ -186,7 +186,7 @@
 
 
     // Короткая надпись на экране для проверки (видно, что загрузилась именно эта версия плагина)
-    var BUILD = 'build 20';
+    var BUILD = 'build 21';
     function showNote(text, ms) {
         try {
             var old = document.getElementById('hhb-note');
@@ -230,19 +230,10 @@
         }
     }
 
-    function blackenDialog(root) {
-        // найти заголовок внутри добавленного блока
-        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-        var node, titleEl = null;
-        while ((node = walker.nextNode())) {
-            var txt = (node.nodeValue || '').trim().toLowerCase();
-            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1) { titleEl = node.parentElement; break; }
-        }
-        if (!titleEl) {
-            if (DEBUG_DIALOG) showNote('Окно: заголовок не найден в ' + root.tagName.toLowerCase() + '.' + String(root.className).slice(0, 40), 12000);
-            return;
-        }
-        for (var k = 0; k < dialogs.length; k++) if (dialogs[k].title === titleEl) return;
+    // Красит окно по найденному заголовку. Возвращает true, если окно найдено (новое или уже покрашенное).
+    function blackenFromTitle(titleEl) {
+        if (!titleEl) return false;
+        for (var k = 0; k < dialogs.length; k++) if (dialogs[k].title === titleEl) return true;
 
         // окно = ближайший блок вокруг заголовка, где есть хотя бы два пункта выбора
         var box = titleEl.parentElement;
@@ -250,7 +241,7 @@
         if (!box || box === document.body) box = titleEl.parentElement && titleEl.parentElement.parentElement;
         if (!box) {
             if (DEBUG_DIALOG) showNote('Окно: не нашёл блок вокруг заголовка', 12000);
-            return;
+            return false;
         }
 
         var rec = { title: titleEl, els: [] };
@@ -265,6 +256,53 @@
         }
         dialogs.push(rec);
         if (DEBUG_DIALOG) showDlgDebug(lines);
+        return true;
+    }
+
+    // Окно, появившееся как новый блок на странице
+    function blackenDialog(root) {
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        while ((node = walker.nextNode())) {
+            var txt = (node.nodeValue || '').trim().toLowerCase();
+            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1) { blackenFromTitle(node.parentElement); return; }
+        }
+    }
+
+    // Поиск окна по всей странице: нужен, если оно не добавляется как новый блок,
+    // а появляется другим способом (например, показывается уже готовое).
+    function scanDialogs() {
+        var found = false;
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        while ((node = walker.nextNode())) {
+            var txt = (node.nodeValue || '').trim().toLowerCase();
+            if (txt && BLACK_DIALOGS.indexOf(txt) !== -1 && blackenFromTitle(node.parentElement)) found = true;
+        }
+        return found;
+    }
+
+    // Окно выхода появляется при долгом нажатии «Назад»: после такого нажатия
+    // несколько секунд ищем окно по странице.
+    var BACK_KEYS = [4, 8, 27, 166, 461, 10009];
+    var scanRun = null, sawRepeat = false;
+    function onBackKey(e) {
+        if (BACK_KEYS.indexOf(e.keyCode) === -1) return;
+        if (e.repeat) sawRepeat = true;
+        if (scanRun) return;
+        var n = 0, foundInRun = false;
+        scanRun = setInterval(function () {
+            n++;
+            try { if (scanDialogs()) foundInRun = true; } catch (err) {}
+            if (n >= 12) {
+                clearInterval(scanRun);
+                scanRun = null;
+                if (DEBUG_DIALOG && sawRepeat && !foundInRun) {
+                    showNote('Окно: после долгого «Назад» заголовок не найден на странице', 8000);
+                }
+                sawRepeat = false;
+            }
+        }, 300);
     }
 
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
@@ -339,6 +377,7 @@
         fixHeadTitle();
         observer.observe(document.body, { childList: true, subtree: true });
         attachHeadObserver();
+        window.addEventListener('keydown', onBackKey, true);
         if (DEBUG_DIALOG) showNote('Плагин загружен: ' + BUILD, 8000);
     }
 
