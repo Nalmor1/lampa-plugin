@@ -5,7 +5,7 @@
     if (window.__diagPanelLoaded) return;
     window.__diagPanelLoaded = true;
 
-    var RX = /получение информации|информации о торренте|torrserve/i;
+    var RX = /получение информации|информации о торренте|torrserve\s*matrix/i;
     var BOX_ID = 'diag-panel-box';
     var mutedUntil = 0, hideTimer = null;
 
@@ -51,6 +51,9 @@
                 if (!RX.test(txt)) continue;
                 var el = node.parentElement;
                 if (!el || el.closest('#' + BOX_ID)) continue;
+                // скрытые элементы и меню настроек пропускаем: там такие слова лежат всегда
+                if (el.closest('.settings, .settings__body, .settings-folder')) continue;
+                if (!el.getClientRects().length) continue;
                 var key = txt.trim().slice(0, 40);
                 if (seen[key]) continue;
                 seen[key] = true;
