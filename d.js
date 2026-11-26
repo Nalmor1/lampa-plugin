@@ -1,19 +1,40 @@
 (function () {
     'use strict';
-    // ВРЕМЕННАЯ диагностика: когда появляется панель «Получение информации» / «TorrServe»,
-    // показывает в левом верхнем углу названия её классов. Потом плагин удаляется.
+    // ВРЕМЕННАЯ диагностика: ищет на экране панель «Получение информации» / «TorrServe»
+    // и показывает в левом верхнем углу названия её классов. Потом плагин удаляется.
     if (window.__diagPanelLoaded) return;
     window.__diagPanelLoaded = true;
 
     var RX = /получение информации|информации о торренте|torrserve/i;
     var BOX_ID = 'diag-panel-box';
-    var timer = null, hideTimer = null;
+    var mutedUntil = 0, hideTimer = null;
+
+    function box() {
+        var b = document.getElementById(BOX_ID);
+        if (!b) {
+            b = document.createElement('div');
+            b.id = BOX_ID;
+            b.style.cssText = 'position:fixed;left:0;top:0;max-width:95%;z-index:2147483647;' +
+                'background:#000;color:#0f0;font:20px/1.25 monospace;padding:10px;white-space:pre-wrap;' +
+                'word-break:break-all;pointer-events:none;border:2px solid #0f0;';
+            document.body.appendChild(b);
+        }
+        return b;
+    }
+
+    function show(text, ms) {
+        var b = box();
+        b.textContent = text;
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, ms);
+    }
 
     function desc(el) {
         var cs = window.getComputedStyle(el);
         var cls = typeof el.className === 'string' ? el.className.trim().replace(/\s+/g, '.') : '';
         var extra = [];
         if (cs.position !== 'static') extra.push(cs.position);
+        if (cs.display === 'none') extra.push('display:none');
         if (cs.animationName && cs.animationName !== 'none') extra.push('anim:' + cs.animationName);
         if (cs.transitionDuration && !/^0s(, 0s)*$/.test(cs.transitionDuration)) extra.push('tr:' + cs.transitionDuration);
         if (cs.transform && cs.transform !== 'none') extra.push('transform');
@@ -21,9 +42,8 @@
     }
 
     function scan() {
-        timer = null;
         try {
-            if (!document.body) return;
+            if (!document.body || Date.now() < mutedUntil) return;
             var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
             var node, lines = [], seen = {}, n = 0;
             while ((node = walker.nextNode()) && n < 4) {
@@ -43,43 +63,16 @@
                     depth++;
                 }
             }
-            if (lines.length) show(lines);
+            if (lines.length) {
+                mutedUntil = Date.now() + 35000;
+                show(lines.join('\n'), 30000);
+            }
         } catch (e) {}
     }
 
-    function show(lines) {
-        var box = document.getElementById(BOX_ID);
-        if (!box) {
-            box = document.createElement('div');
-            box.id = BOX_ID;
-            box.style.cssText = 'position:fixed;left:0;top:0;max-width:95%;z-index:2147483647;' +
-                'background:#000;color:#0f0;font:20px/1.25 monospace;padding:10px;white-space:pre-wrap;' +
-                'word-break:break-all;pointer-events:none;border:2px solid #0f0;';
-            document.body.appendChild(box);
-        }
-        box.textContent = lines.join('\n');
-        clearTimeout(hideTimer);
-        hideTimer = setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 30000);
-    }
-
-    var observer = new MutationObserver(function (mutations) {
-        if (timer) return;
-        for (var i = 0; i < mutations.length; i++) {
-            var added = mutations[i].addedNodes;
-            for (var k = 0; k < added.length; k++) {
-                var nd = added[k];
-                if (nd.nodeType !== 1 || nd.id === BOX_ID) continue;
-                var t = nd.textContent || '';
-                if (t.length < 3000 && RX.test(t)) {
-                    timer = setTimeout(scan, 350); // дать панели дорисоваться
-                    return;
-                }
-            }
-        }
-    });
-
     function start() {
-        observer.observe(document.body, { childList: true, subtree: true });
+        show('d.js загружен: жду панель «Получение информации»', 6000);
+        setInterval(scan, 700);
     }
 
     if (window.appready) start();
