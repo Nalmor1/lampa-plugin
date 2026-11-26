@@ -36,8 +36,8 @@
     // Прятать колесо загрузки в центре экрана (при переходе по вкладкам и разделам)
     var HIDE_LOADER = true;
 
-    // Плавнее прокрутка списков (на слабых ТВ): убирает маску затухания у краёв списка
-    // и сокращает анимацию сдвига с 0.3 до 0.13 секунды. Не нравится — поставь false
+    // Прокрутка списков (на слабых ТВ): убирает маску затухания у краёв списка.
+    // Не нравится — поставь false
     var SMOOTH_SCROLL = true;
 
     // Все правила стилей — одним блоком
@@ -64,8 +64,7 @@
         css += '.activity__loader { display: none !important; }';
     }
     if (SMOOTH_SCROLL) {
-        css += '.scroll--mask { -webkit-mask-image: none !important; mask-image: none !important; }' +
-               '.scroll__body { transition-duration: .13s !important; }';
+        css += '.scroll--mask { -webkit-mask-image: none !important; mask-image: none !important; }';
     }
     var style = document.createElement('style');
     style.textContent = css;
