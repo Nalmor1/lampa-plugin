@@ -237,6 +237,18 @@
         attachHeadObserver();
     }
 
+    // ===== Блоки «Метаданные» и «Настроения» на экране фильма =====
+    // Событие приходит до того, как Lampa собирает ряды карточки.
+    // Убираем данные, и эти ряды не создаются (пульту не на чем залипать).
+    function followMetadata() {
+        if (!window.Lampa || !Lampa.Listener) return setTimeout(followMetadata, 200);
+        Lampa.Listener.follow('full', function (e) {
+            if (e.type === 'start' && e.data) delete e.data.metadata;
+        });
+    }
+
+    followMetadata();
+
     if (window.appready) start();
     else if (window.Lampa && Lampa.Listener) {
         Lampa.Listener.follow('app', function (e) {
