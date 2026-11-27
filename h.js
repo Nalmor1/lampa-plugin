@@ -11,7 +11,6 @@
     var skips = 0;
     var pending = null;
     var calls = 0;
-    var noteTimer = null;
 
     function text(el) {
         return (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -19,7 +18,7 @@
 
     // защита: не прячем крупные части карточки, иначе можно получить пустой экран
     function isSafe(el) {
-        var big = '.activity, .scroll, .full-start, .full-start-new';
+        var big = '.activity, .full-start, .full-start-new';
         if (el === document.body || el.matches(big) || el.querySelector(big)) return false;
         return el.querySelectorAll('.items-line').length === 0;
     }
@@ -62,21 +61,9 @@
 
         // если в контейнере не осталось ничего видимого, прячем и его
         for (var i = 0; i < parent.children.length; i++) {
-            if (!parent.children[i].classList.contains(HIDDEN)) return notify();
+            if (!parent.children[i].classList.contains(HIDDEN)) return;
         }
         hide(parent);
-        notify();
-    }
-
-    function message(str) {
-        if (window.Lampa && Lampa.Noty) Lampa.Noty.show(str);
-    }
-
-    function notify() {
-        clearTimeout(noteTimer);
-        noteTimer = setTimeout(function () {
-            message('Скрытие v2: блок найден и скрыт');
-        }, 500);
     }
 
     function scan() {
@@ -166,11 +153,6 @@
         });
 
         scan();
-
-        // чтобы было видно, что Lampa вообще загрузила плагин
-        setTimeout(function () {
-            message('Скрытие v2: плагин загружен');
-        }, 4000);
     }
 
     if (document.body) start();
