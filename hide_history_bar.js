@@ -36,6 +36,10 @@
     // Прятать колесо загрузки в центре экрана (при переходе по вкладкам и разделам)
     var HIDE_LOADER = true;
 
+    // Прятать жанры в строке под рейтингами на экране фильма («Приключения | Триллер»).
+    // Длительность, сезоны, серии и качество остаются. Блок «Жанр» в описании не трогаем.
+    var HIDE_GENRES = true;
+
     // Все правила стилей — одним блоком
     var css = '.' + CLASS;
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
@@ -167,6 +171,54 @@
         return hidden;
     }
 
+    // ===== Жанры в строке под рейтингами =====
+    // Жанры приходят в том же ответе TMDB, что и вся карточка, отдельного запроса нет.
+    // Прячем их сразу после построения блока, до первой отрисовки, поэтому не мелькают.
+    var GENRES_BOX = '.full-start-new__details, .full-start__details';
+    var SPLIT_CLASS = 'full-start-new__split';
+
+    // Текст, которым Lampa выводит жанры: названия через « | », не больше пяти
+    function genreText(data) {
+        var g = data && data.movie && data.movie.genres;
+        if (!g || !g.length) return '';
+        var names = [];
+        for (var i = 0; i < g.length && names.length < 5; i++) {
+            if (g[i] && g[i].name) names.push(g[i].name);
+        }
+        return names.join(' | ').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    function hideGenreLine(box, gt) {
+        var items = box.children;
+        for (var i = 0; i < items.length; i++) {
+            var sp = items[i];
+            if (sp.classList.contains(CLASS) || sp.classList.contains(SPLIT_CLASS)) continue;
+            var t = (sp.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (t !== gt) continue;
+            sp.classList.add(CLASS);
+            // вместе с жанрами прячем одну точку рядом, чтобы не остались две подряд
+            var prev = sp.previousElementSibling, next = sp.nextElementSibling;
+            if (prev && prev.classList.contains(SPLIT_CLASS)) prev.classList.add(CLASS);
+            else if (next && next.classList.contains(SPLIT_CLASS)) next.classList.add(CLASS);
+            return;
+        }
+    }
+
+    function hideGenres(root, data) {
+        var gt = genreText(data);
+        if (!gt || !root || !root.querySelectorAll) return;
+        var boxes = root.querySelectorAll(GENRES_BOX);
+        for (var i = 0; i < boxes.length; i++) {
+            (function (box) {
+                hideGenreLine(box, gt);
+                // строку могут перерисовать позже (например, плагин добавил качество)
+                new MutationObserver(function () {
+                    try { hideGenreLine(box, gt); } catch (e) {}
+                }).observe(box, { childList: true });
+            })(boxes[i]);
+        }
+    }
+
     // ===== Заголовок «Главная - CUB» / «Главная - TMDB» → «Главная» =====
     // Убирает « - CUB» и « - TMDB» (и с тире «–», «—») в конце заголовка в верхней панели
     var TITLE_REGEX = /\s*[-\u2013\u2014]\s*(?:CUB|TMDB)\s*$/i;
@@ -278,7 +330,13 @@
 
         // кнопки на экране фильма (в том числе добавленные позже)
         Lampa.Listener.follow('full', function (e) {
-            if (e.type === 'build' && e.name === 'start' && e.item) watch(e.item.render(true));
+            if (e.type === 'build' && e.name === 'start' && e.item) {
+                var box = e.item.render(true);
+                watch(box);
+                if (HIDE_GENRES) {
+                    try { hideGenres(box, e.data); } catch (err) {}
+                }
+            }
         });
 
         // вкладки в поиске
