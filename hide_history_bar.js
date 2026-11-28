@@ -21,7 +21,7 @@
     // ===== Кнопки верхней панели =====
     // open--broadcast — значок «Открыть карточку на другом устройстве» (появляется на экране фильма)
     // black-friday__button — молния в верхней панели (и её вариант --animation)
-    var HIDE_HEAD_CLASSES = ['open--broadcast', 'black-friday__button'];
+    var HIDE_HEAD_CLASSES = ['open--broadcast', 'black-friday__button', 'black-friday__button--animation'];
 
     // ===== Вкладка «AI-ассистент» в поиске =====
     // Скрывается только элемент, у которого весь текст — «AI-ассистент»
@@ -37,7 +37,7 @@
     var HIDE_LOADER = true;
 
     // Все правила стилей — одним блоком
-    var css = '.' + CLASS + ',.head [class*="black-friday"]';
+    var css = '.' + CLASS;
     for (var q = 0; q < HIDE_HEAD_CLASSES.length; q++) css += ',.head .' + HIDE_HEAD_CLASSES[q];
     css += ' { display: none !important; }';
     if (SHOW_LABELS) {
@@ -148,7 +148,9 @@
         }
         if (isHeadTarget(el)) return hideEl(el);
         if (!cl.contains('selector')) return false;
-        if (cl.contains('card')) return false; // карточки фильмов: сотни штук, текст читать не нужно
+        // карточки фильмов и раздачи: их много, скрывать их не нужно, текст не читаем
+        if (cl.contains('card') || cl.contains('torrent-item') ||
+            cl.contains('torrent-serial') || cl.contains('torrent-file')) return false;
         // текст читаем один раз и используем во всех проверках
         var text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (matchesText(text) || shouldHideButton(el, text) || shouldHideTab(text)) return hideEl(el);
@@ -188,8 +190,6 @@
         }
     }
 
-
-
     // Колбэк MutationObserver срабатывает ДО отрисовки кадра,
     // поэтому лишнее скрывается мгновенно и не успевает мелькнуть.
     // Изменения собираем за весь пакет и каждый элемент проверяем один раз.
@@ -197,7 +197,6 @@
         try {
             var hidden = false;
             var roots = [], sels = [];
-            var headChanged = false;
             for (var i = 0; i < mutations.length; i++) {
                 var m = mutations[i];
                 for (var k = 0; k < m.addedNodes.length; k++) {
@@ -207,21 +206,15 @@
                 var t = m.target && (m.target.nodeType === 1 ? m.target : m.target.parentElement);
                 var s = t && t.closest ? t.closest('.selector') : null;
                 if (s && !s._hhbQ) { s._hhbQ = true; sels.push(s); }
-                // менялась ли верхняя панель (только тогда нужно поправлять заголовок)
-                if (!headChanged && t && t.closest && t.closest('.head, .head__title')) headChanged = true;
             }
             var r;
             for (r = 0; r < roots.length; r++) {
                 if (checkTree(roots[r])) hidden = true;
-                if (!headChanged && roots[r].classList &&
-                    (roots[r].classList.contains('head') || roots[r].classList.contains('head__title'))) headChanged = true;
             }
             for (r = 0; r < sels.length; r++) {
                 sels[r]._hhbQ = false;
                 if (checkEl(sels[r])) hidden = true;
             }
-            if (headChanged) fixHeadTitle();
-            attachHeadObserver();
             if (hidden) refreshController();
         } catch (err) {}
     });
@@ -238,22 +231,31 @@
             if (hidden) refreshController();
         } catch (err) {}
     });
-    var headWatched = null;
+    // В верхней панели следим только за заголовком и значками.
+    // Часы и индикаторы сети не трогаем.
+    var titleObserver = new MutationObserver(function () {
+        try { fixHeadTitle(); } catch (e) {}
+    });
 
-    function attachHeadObserver() {
-        var head = document.querySelector('.head');
-        if (!head || head === headWatched) return;
-        headObserver.disconnect();
-        headObserver.observe(head, { subtree: true, attributes: true, attributeFilter: ['class'] });
-        headWatched = head;
+    function watchHead() {
+        var title = document.querySelector('.head__title');
+        if (title) titleObserver.observe(title, { childList: true, characterData: true, subtree: true });
+
+        var actions = document.querySelector('.head__actions') || document.querySelector('.head');
+        if (!actions) return;
+        watch(actions);
+        headObserver.observe(actions, { subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
     // ===== Следим только там, где есть что скрывать =====
     // За всем экраном не следим: из-за этого тяжелее ходить по карточкам.
 
-    // Разделы с карточками фильмов: в них скрывать нечего.
+    // Встроенные разделы Lampa, где скрывать нечего (все, кроме торрентов).
     // «full» (карточка фильма) обрабатывается отдельно: только блок с кнопками.
-    var SKIP_SCREENS = ['main', 'category', 'category_full', 'favorite', 'bookmarks', 'full'];
+    var SKIP_SCREENS = ['main', 'full', 'category', 'category_full', 'actor', 'favorite',
+        'mytorrents', 'relise', 'nocomponent', 'timetable', 'subscribes', 'company', 'feed',
+        'bookmarks', 'episodes', 'myperson', 'ai_facts', 'ai_recommendations', 'discuss',
+        'recomend', 'watch_history', 'friend'];
 
     function watch(el) {
         if (!el) return;
@@ -290,8 +292,7 @@
     function start() {
         if (checkTree(document.body)) refreshController();
         fixHeadTitle();
-        watch(document.querySelector('.head'));
-        attachHeadObserver();
+        watchHead();
         followScreens();
 
         // экран, который открылся раньше, чем запустился плагин
