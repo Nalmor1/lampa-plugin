@@ -304,13 +304,14 @@
         } catch (e) {}
     }
 
-    // ===== Блоки «Метаданные» и «Настроения» на экране фильма =====
-    // Отключаем сам запрос этих данных: Lampa их не загружает и блоки не создаёт.
+    // ===== Блоки «Метаданные», «Настроения» и «Комментарии» на экране фильма =====
+    // Отключаем сами запросы этих данных: Lampa их не загружает и блоки не создаёт.
     function disableMetadata() {
         if (!window.lampa_settings || !window.lampa_settings.disable_features) {
             return setTimeout(disableMetadata, 200);
         }
         window.lampa_settings.disable_features.metadata = true;
+        window.lampa_settings.disable_features.discuss = true;
     }
 
     disableMetadata();
