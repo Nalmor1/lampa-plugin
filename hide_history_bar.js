@@ -21,7 +21,8 @@
     // ===== Кнопки верхней панели =====
     // open--broadcast — значок «Открыть карточку на другом устройстве» (появляется на экране фильма)
     // black-friday__button — молния в верхней панели (и её вариант --animation)
-    var HIDE_HEAD_CLASSES = ['open--broadcast', 'black-friday__button', 'black-friday__button--animation'];
+    // open--profile — значок человечка (окно аккаунта CUB / выбор профиля)
+    var HIDE_HEAD_CLASSES = ['open--broadcast', 'black-friday__button', 'black-friday__button--animation', 'open--profile'];
 
     // ===== Вкладка «AI-ассистент» в поиске =====
     // Скрывается только элемент, у которого весь текст — «AI-ассистент»
