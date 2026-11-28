@@ -251,8 +251,7 @@
     function start() {
         if (checkTree(document.body)) refreshController();
         fixHeadTitle();
-        observer.observe(document.body, { childList: true, subtree: true });
-        attachHeadObserver();
+
     }
 
     // ===== Блоки «Метаданные» и «Настроения» на экране фильма =====
@@ -265,6 +264,21 @@
     }
 
     disableMetadata();
+
+    // ===== Пульт: с «Торрентов» вниз сразу на «Жанр» =====
+    // Lampa даёт выбрать текст описания, но никак его не подсвечивает.
+    // Убираем описание из пути пульта, если ниже есть что выбрать.
+    function skipDescriptionText() {
+        if (!window.Lampa || !Lampa.Listener) return setTimeout(skipDescriptionText, 200);
+        Lampa.Listener.follow('full', function (e) {
+            if (e.type !== 'build' || e.name !== 'description' || !e.item) return;
+            var box = e.item.render(true);
+            var text = box && box.querySelector('.full-descr__text');
+            if (text && box.querySelectorAll('.selector').length > 1) text.classList.remove('selector');
+        });
+    }
+
+    skipDescriptionText();
 
     if (window.appready) start();
     else if (window.Lampa && Lampa.Listener) {
