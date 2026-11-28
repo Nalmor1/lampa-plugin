@@ -65,13 +65,31 @@
 
     // Заставляет Lampa заново собрать элементы для курсора,
     // чтобы он не "залипал" на скрытой полосе.
+    // Делает это, только если скрытый элемент успел попасть в список пульта,
+    // и не больше одного раза на пачку изменений.
+    var refreshPlanned = false;
+
+    function pultSeesHidden() {
+        var list = window.Navigator && window.Navigator._collection;
+        if (!list) return true; // список недоступен: обновляем, как раньше
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].classList && list[i].classList.contains(CLASS)) return true;
+        }
+        return false;
+    }
+
     function refreshController() {
-        try {
-            if (window.Lampa && Lampa.Controller) {
-                var current = Lampa.Controller.enabled && Lampa.Controller.enabled();
-                if (current && current.name) Lampa.Controller.toggle(current.name);
-            }
-        } catch (e) {}
+        if (refreshPlanned) return;
+        refreshPlanned = true;
+        setTimeout(function () {
+            refreshPlanned = false;
+            try {
+                if (window.Lampa && Lampa.Controller && pultSeesHidden()) {
+                    var current = Lampa.Controller.enabled && Lampa.Controller.enabled();
+                    if (current && current.name) Lampa.Controller.toggle(current.name);
+                }
+            } catch (e) {}
+        }, 0);
     }
 
     function matchesText(text) {
@@ -238,16 +256,15 @@
     }
 
     // ===== Блоки «Метаданные» и «Настроения» на экране фильма =====
-    // Событие приходит до того, как Lampa собирает ряды карточки.
-    // Убираем данные, и эти ряды не создаются (пульту не на чем залипать).
-    function followMetadata() {
-        if (!window.Lampa || !Lampa.Listener) return setTimeout(followMetadata, 200);
-        Lampa.Listener.follow('full', function (e) {
-            if (e.type === 'start' && e.data) delete e.data.metadata;
-        });
+    // Отключаем сам запрос этих данных: Lampa их не загружает и блоки не создаёт.
+    function disableMetadata() {
+        if (!window.lampa_settings || !window.lampa_settings.disable_features) {
+            return setTimeout(disableMetadata, 200);
+        }
+        window.lampa_settings.disable_features.metadata = true;
     }
 
-    followMetadata();
+    disableMetadata();
 
     if (window.appready) start();
     else if (window.Lampa && Lampa.Listener) {
