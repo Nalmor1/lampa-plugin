@@ -248,10 +248,59 @@
         headWatched = head;
     }
 
+    // ===== Следим только там, где есть что скрывать =====
+    // За всем экраном не следим: из-за этого тяжелее ходить по карточкам.
+
+    // Разделы с карточками фильмов: в них скрывать нечего.
+    // «full» (карточка фильма) обрабатывается отдельно: только блок с кнопками.
+    var SKIP_SCREENS = ['main', 'category', 'category_full', 'favorite', 'bookmarks', 'full'];
+
+    function watch(el) {
+        if (!el) return;
+        observer.observe(el, { childList: true, subtree: true });
+        if (checkTree(el)) refreshController();
+    }
+
+    // Торренты и экраны других плагинов
+    function watchScreen(component, object) {
+        if (SKIP_SCREENS.indexOf(component) !== -1) return;
+        if (object && object.activity) watch(object.activity.render(true));
+    }
+
+    function followScreens() {
+        if (!window.Lampa || !Lampa.Listener) return;
+
+        Lampa.Listener.follow('activity', function (e) {
+            if (e.type === 'create' || e.type === 'start') watchScreen(e.component, e.object);
+        });
+
+        // кнопки на экране фильма (в том числе добавленные позже)
+        Lampa.Listener.follow('full', function (e) {
+            if (e.type === 'build' && e.name === 'start' && e.item) watch(e.item.render(true));
+        });
+
+        // вкладки в поиске
+        if (Lampa.Search && Lampa.Search.listener) {
+            Lampa.Search.listener.follow('open', function () {
+                watch(Lampa.Search.render(true));
+            });
+        }
+    }
+
     function start() {
         if (checkTree(document.body)) refreshController();
         fixHeadTitle();
+        watch(document.querySelector('.head'));
+        attachHeadObserver();
+        followScreens();
 
+        // экран, который открылся раньше, чем запустился плагин
+        var opened = document.querySelectorAll('.full-start, .full-start-new');
+        for (var i = 0; i < opened.length; i++) watch(opened[i]);
+        try {
+            var now = window.Lampa && Lampa.Activity && Lampa.Activity.active();
+            if (now) watchScreen(now.component, now);
+        } catch (e) {}
     }
 
     // ===== Блоки «Метаданные» и «Настроения» на экране фильма =====
